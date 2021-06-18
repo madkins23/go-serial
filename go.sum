@@ -1,8 +1,6 @@
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/madkins23/go-type v0.0.0-20210618193436-158140e59af1 h1:IibYEjwrZsiAZi9JA+FHSaPNtSFqSd1UzEtzkeLhiPg=
-github.com/madkins23/go-type v0.0.0-20210618193436-158140e59af1/go.mod h1:GD86R92W34y0vfq+DAzeqwIOIn4VcYUpwERFmDLIoC0=
 github.com/madkins23/go-type v0.0.0-20210618195643-d6259aff36f4 h1:pwhSi7PVjF8exzMS7H5Aftio3p658zMa46rpMz/JIQs=
 github.com/madkins23/go-type v0.0.0-20210618195643-d6259aff36f4/go.mod h1:GD86R92W34y0vfq+DAzeqwIOIn4VcYUpwERFmDLIoC0=
 github.com/mitchellh/mapstructure v1.4.1/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
