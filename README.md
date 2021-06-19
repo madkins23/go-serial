@@ -3,9 +3,13 @@
 ## Problem Description
 
 Go makes it hard to deserialize an object with fields that are interfaces.
+This includes map and array values as well as structs.
+
+Serialization of an interface is pretty simple.
+The object that fills the interface has a type to guide the process.
 
 Deserialization of generalized Go interfaces is problematic.
-Deserializing a given type is generally done using reflection,
+Unmarshaling a given type is generally done using reflection,
 since the type is present and can be used to guide the process.
 An interface may be filled with instances of any type that implements the interface,
 so the decoder can't know what type to generate to fill the interface.
@@ -81,6 +85,13 @@ Usage is demonstrated in test files.
 
 Types that implement an interface must be registered.
 This allows them to be instantiated by type name.
+
+In addition to providing the type name index,
+`go-type/reg.Registry` places the burden for registration
+on the type that implements the interface,
+not on the code that uses that type in an interface.
+This seems like a more maintainable approach than the one
+described above in **Manual Solution**.
 
 The [`go-type/reg`](https://github.com/madkins23/go-type) package
 provides the type name index.
