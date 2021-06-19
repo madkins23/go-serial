@@ -7,7 +7,7 @@ Go makes it hard to deserialize an object with fields that are interfaces.
 Deserialization of generalized Go interfaces is problematic.
 Deserializing a given type is generally done using reflection,
 since the type is present and can be used to guide the process.
-An interface may be filled with any number of classes,
+An interface may be filled with instances of any type that implements the interface,
 so the decoder can't know what type to generate to fill the interface.
 
 ### Manual Solution
@@ -31,32 +31,32 @@ This represents a bit of a code maintenance issue.
 
 Some obstacles to generalizing serialization of objects that have interface fields.
 
-#### No Class Names in Serialized Formats
+#### No Type Names in Serialized Formats
 
 Existing serializing code doesn't recognize the need to represent
-interface values as being of specific classes.
+interface values as being of specific types.
 There is no extra information of this type in JSON or YAML.
 
-It is possible to override the marshaling code for classes
+It is possible to override the marshaling code for types
 that implement specific interfaces that need to be serialized.
 Actually attempting to implement `MarshalXXXX()` to
-wrap such output with an extra level structure to provide the class name
+wrap such output with an extra level structure to provide the type name
 generally results in stack overflow.
 It is always necessary to actually serialize the object that is being wrapped
 which then invokes the same method again and so forth and so on.
 There is `context.Context` or dynamic variable mechanism to use to
 pass a flag to avoid the wrapping the second time.
 
-#### No Index of Class Names
+#### No Index of Type Names
 
-Any serialized class name will be a string.
-Go has no support for looking up a `Type` object by class name.
+Any serialized type name will be a string.
+Go has no support for looking up a `Type` object by type name.
 
-#### No Hook to Instantiate Named Classes for Interface Values
+#### No Hook to Instantiate Named Types for Interface Values
 
 Serialization packages provide `UnmarshalXXXX()` methods for
 customizing deserialization behavior.
-If type `Alpha` has an interface field than _that_ class,
+If type `Alpha` has an interface field than _that_ type,
 not the ones that must be deserialized to fill the interface field,
 must have the method.
 
@@ -69,7 +69,7 @@ that could be used to provide specific types for decoding.
 
 ### Wrap Interface Values During Serialization
 
-Override the appropriate `MarshalXXXX()` method for any class
+Override the appropriate `MarshalXXXX()` method for any type
 containing an interface field.
 Generate 'wrapper' map around each object that fills an interface
 with a type name field and a contents field for the original object.
@@ -77,17 +77,17 @@ with a type name field and a contents field for the original object.
 Support for wrappers is provided by this project.
 Usage is demonstrated in test files.
 
-### Provide a Class Name Index
+### Provide a Type Name Index
 
 Types that implement an interface must be registered.
-This allows them to be instantiated by class name.
+This allows them to be instantiated by type name.
 
 The [`go-type/reg`](https://github.com/madkins23/go-type) package
-provides the class name index.
+provides the type name index.
 
 ### Unwrap Interface Values During Deserialization
 
-Override the appropriate `UnmarshalXXXX()` method for any class
+Override the appropriate `UnmarshalXXXX()` method for any type
 containing an interface field.
 For interface field:
 * Parse the 'wrapper' map to get the type name.
