@@ -8,33 +8,35 @@ import (
 	"github.com/madkins23/go-type/reg"
 )
 
+// Wrapper is used to attach a type name to an item to be serialized.
+// This supports re-creating the correct type for filling an interface field.
 type Wrapper struct {
 	TypeName string
 	Contents json.RawMessage
 }
 
+// WrapItem returns the specified item wrapped for serialization.
 func WrapItem(item interface{}) (*Wrapper, error) {
 	w := &Wrapper{}
-	return w, w.Wrap(item)
-}
-
-func (w *Wrapper) Wrap(item interface{}) error {
 	var err error
 	if w.TypeName, err = reg.NameFor(item); err != nil {
-		return fmt.Errorf("get type name for %#v: %w", item, err)
+		return nil, fmt.Errorf("get type name for %#v: %w", item, err)
 	}
 
 	build := &strings.Builder{}
 	encoder := json.NewEncoder(build)
 	encoder.SetEscapeHTML(false)
 	if err = encoder.Encode(item); err != nil {
-		return fmt.Errorf("marshal wrapper contents: %w", err)
+		return nil, fmt.Errorf("marshal wrapper contents: %w", err)
 	}
 	w.Contents = []byte(build.String())
 
-	return nil
+	return w, nil
 }
 
+// Unwrap returns the object contained in the wrapper.
+// The type name contained in the wrapper is used to
+// create an appropriate instance to which the JSON contents are decoded.
 func (w *Wrapper) Unwrap() (interface{}, error) {
 	if w.TypeName == "" {
 		return nil, fmt.Errorf("empty type field")
