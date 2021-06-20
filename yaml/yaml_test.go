@@ -89,10 +89,13 @@ type xferAccount struct {
 		Positions []*Wrapper
 		Lookup    map[string]*Wrapper
 	}
+	test.AccountData
 }
 
 func (a *Account) MarshalYAML() (interface{}, error) {
-	xfer := &xferAccount{}
+	xfer := &xferAccount{
+		AccountData: a.AccountData,
+	}
 
 	// Wrap objects referenced by interface fields.
 	var err error
@@ -124,13 +127,21 @@ func (a *Account) MarshalYAML() (interface{}, error) {
 }
 
 func (a *Account) UnmarshalYAML(node *yaml.Node) error {
+	var accountData = test.AccountData{}
+
 	if topAccount, err := NodeAsMap(node); err != nil {
 		return fmt.Errorf("get top account map: %w", err)
 	} else if subNode, found := topAccount["account"]; !found {
 		return fmt.Errorf("no sub account")
 	} else if subAccount, err := NodeAsMap(subNode); err != nil {
 		return fmt.Errorf("get sub account map: %w", err)
+	} else if datNode, found := topAccount["accountdata"]; !found {
+		return fmt.Errorf("no account data")
+	} else if err = datNode.Decode(&accountData); err != nil {
+		return fmt.Errorf("decode account data: %w", err)
 	} else {
+		a.AccountData = accountData
+
 		// Unwrap objects referenced by interface fields.
 		if favorite, found := subAccount["favorite"]; found {
 			if a.Favorite, err = a.getInvestment(favorite); err != nil {

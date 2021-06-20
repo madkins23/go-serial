@@ -87,7 +87,8 @@ func MakeAccount() *Account {
 }
 
 type xferAccount struct {
-	Account struct {
+	AccountData test.AccountData
+	Account     struct {
 		Favorite  *Wrapper
 		Positions []*Wrapper
 		Lookup    map[string]*Wrapper
@@ -95,7 +96,7 @@ type xferAccount struct {
 }
 
 func (a *Account) MarshalJSON() ([]byte, error) {
-	xfer := &xferAccount{}
+	xfer := &xferAccount{AccountData: a.AccountData}
 
 	// Wrap objects referenced by interface fields.
 	var err error
@@ -131,6 +132,8 @@ func (a *Account) UnmarshalJSON(marshaled []byte) error {
 	if err := json.Unmarshal(marshaled, xfer); err != nil {
 		return fmt.Errorf("unmarshal to loader: %w", err)
 	}
+
+	a.AccountData = xfer.AccountData
 
 	// Unwrap objects referenced by interface fields.
 	var err error

@@ -9,7 +9,14 @@ var _ Investment = &Bond{}
 
 //////////////////////////////////////////////////////////////////////////
 
+type AccountData struct {
+	Name    string
+	Age     uint
+	Veteran bool
+}
+
 type Account struct {
+	AccountData
 	Favorite  Investment
 	Positions []Investment
 	Lookup    map[string]Investment
@@ -22,6 +29,11 @@ func (a *Account) MakeFake() {
 }
 
 func (a *Account) MakeFakeUsing(costco, walmart *Stock, tBill *Bond) {
+	a.AccountData = AccountData{
+		Name:    "Goober Snoofus",
+		Age:     23,
+		Veteran: true,
+	}
 	a.Favorite = costco
 	a.Positions = []Investment{
 		costco,
