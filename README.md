@@ -142,3 +142,13 @@ This package supports several serialization formats:
 * JSON
 * YAML
 
+## Caveats
+
+1. There is no anchor mechanism at the current time so serializing data
+with repeated references to the same object will deserialize into
+multiple copies of that object.
+
+2. This code may work with non-`struct` objects that implement an
+interface but no testing has been done thus far.
+   
+3. It is possible to register private classes with `go-type/reg`.
