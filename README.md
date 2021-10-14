@@ -160,3 +160,6 @@ Ideally BSON would be included but that work has not been done.
 
 2. This code _may_ work with non-`struct` objects that implement an
    interface but no testing has been done thus far.
+
+See the [source](https://github.com/madkins23/go-serial) or
+[godoc](https://godoc.org/github.com/madkins23/go-serial) for documentation.
