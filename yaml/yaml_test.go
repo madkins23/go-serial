@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
 
-	"github.com/madkins23/go-serial/test"
 	"github.com/madkins23/go-type/reg"
+
+	"github.com/madkins23/go-serial/test"
 )
 
 type YamlTestSuite struct {
@@ -25,7 +26,6 @@ func (suite *YamlTestSuite) SetupSuite() {
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
-	suite.showAccount = true
 	suite.Require().NoError(reg.AddAlias("test", test.Account{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&test.Stock{}))
 	suite.Require().NoError(reg.Register(&test.Bond{}))

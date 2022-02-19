@@ -11,8 +11,9 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/madkins23/go-serial/test"
 	"github.com/madkins23/go-type/reg"
+
+	"github.com/madkins23/go-serial/test"
 )
 
 type JsonTestSuite struct {
@@ -26,7 +27,6 @@ func (suite *JsonTestSuite) SetupSuite() {
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
-	suite.showAccount = true
 	suite.Require().NoError(reg.AddAlias("test", test.Account{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&test.Stock{}))
 	suite.Require().NoError(reg.Register(&test.Bond{}))
