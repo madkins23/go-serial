@@ -27,29 +27,36 @@ var _ = (Goober)(&MyGoober{})
 
 type Goober interface {
 	Wrappable
+
+	Name() string
+	Age() uint8
 }
 
 type MyGoober struct {
-	//Goober // TODO: (what?)
-	text   string
-	number int
+	Goober
+	name string
+	age  uint8
 }
 
-func (mg *MyGoober) Text() string {
-	return mg.text
+func (mg *MyGoober) Name() string {
+	return mg.name
+}
+
+func (mg *MyGoober) Age() uint8 {
+	return mg.age
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 const testDataType = "MyGoober"
-const testText = "test"
+const testName = "test"
 const testType = "type"
-const testNum = 23
+const testAge = uint8(23)
 
 func (suite *WrapperTestSuite) TestWrapper() {
 	g := new(MyGoober)
-	g.text = testText
-	g.number = testNum
+	g.name = testName
+	g.age = testAge
 	w := &Wrapper[Goober]{
 		TypeName: testType,
 		Contents: g,
@@ -60,13 +67,17 @@ func (suite *WrapperTestSuite) TestWrapper() {
 	wg, err := Wrap[Goober](g)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(wg)
-	contents, ok := wg.Contents.(*MyGoober) // TODO: This syntax is a little painful.
+	gc := wg.Contents
+	suite.Require().NotNil(gc)
+	suite.Assert().Equal(gc.Name(), testName)
+	suite.Assert().Equal(gc.Age(), testAge)
+	contents, ok := gc.(*MyGoober) // TODO: This syntax is a little painful.
 	suite.Require().True(ok)
 	suite.Require().NotNil(contents)
-	suite.Assert().Equal(contents.text, testText)
-	suite.Assert().Equal(contents.number, testNum)
+	suite.Assert().Equal(contents.name, testName)
+	suite.Assert().Equal(contents.age, testAge)
 	suite.Assert().True(strings.Contains(wg.TypeName, testDataType))
 
-	x := wg.GetContents()
+	x := wg.Contents
 	suite.Require().NotNil(x)
 }
