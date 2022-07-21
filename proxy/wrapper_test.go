@@ -54,30 +54,23 @@ const testType = "type"
 const testAge = uint8(23)
 
 func (suite *WrapperTestSuite) TestWrapper() {
-	g := new(MyGoober)
-	g.name = testName
-	g.age = testAge
-	w := &Wrapper[Goober]{
-		TypeName: testType,
-		Contents: g,
-	}
-	suite.Require().NotNil(w)
-	suite.Assert().Equal(testType, w.TypeName)
-	suite.Require().NotNil(w.Contents)
-	wg, err := Wrap[Goober](g)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(wg)
-	gc := wg.Contents
-	suite.Require().NotNil(gc)
-	suite.Assert().Equal(gc.Name(), testName)
-	suite.Assert().Equal(gc.Age(), testAge)
-	contents, ok := gc.(*MyGoober) // TODO: This syntax is a little painful.
-	suite.Require().True(ok)
-	suite.Require().NotNil(contents)
-	suite.Assert().Equal(contents.name, testName)
-	suite.Assert().Equal(contents.age, testAge)
-	suite.Assert().True(strings.Contains(wg.TypeName, testDataType))
+	myGoober := new(MyGoober)
+	myGoober.name = testName
+	myGoober.age = testAge
 
-	x := wg.Contents
-	suite.Require().NotNil(x)
+	wrappedGoober, err := Wrap[Goober](myGoober)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(wrappedGoober)
+
+	unwrappedGoober := wrappedGoober.Get()
+	suite.Require().NotNil(unwrappedGoober)
+	suite.Assert().Equal(unwrappedGoober.Name(), testName)
+	suite.Assert().Equal(unwrappedGoober.Age(), testAge)
+
+	unwrappedMyGoober, ok := unwrappedGoober.(*MyGoober) // TODO: This syntax is a little painful.
+	suite.Require().True(ok)
+	suite.Require().NotNil(unwrappedMyGoober)
+	suite.Assert().Equal(unwrappedMyGoober.name, testName)
+	suite.Assert().Equal(unwrappedMyGoober.age, testAge)
+	suite.Assert().True(strings.Contains(wrappedGoober.TypeName, testDataType))
 }

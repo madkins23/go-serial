@@ -7,7 +7,7 @@ import (
 )
 
 // Wrappable provides the interface for objects that can be wrapped.
-//  This may not be necessary.
+//  TODO(mAdkins): is this necessary?
 type Wrappable interface{}
 
 type Wrapper[T Wrappable] struct {
@@ -29,6 +29,7 @@ func Wrap[V Wrappable](contents V) (*Wrapper[V], error) {
 	}
 }
 
-//func (w Wrapper[V]) Get() V {
-//	return w.Contents
-//}
+// Get the contents of a wrapped item (the item itself).
+func (w Wrapper[V]) Get() V {
+	return w.Contents
+}
