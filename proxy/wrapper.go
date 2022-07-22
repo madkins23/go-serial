@@ -1,35 +1,89 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/madkins23/go-type/reg"
+	"github.com/madkins23/go-utils/check"
 )
 
 // Wrappable provides the interface for objects that can be wrapped.
 //  TODO(mAdkins): is this necessary?
-type Wrappable interface{}
+type Wrappable interface {
+	// Wrap prepares the item for serialization if necessary.
+	// Objects must pass this down to embedded wrappers.
+	Wrap() error
 
-type Wrapper[T Wrappable] struct {
-	TypeName string
-	Contents T
-	// Note: Serialization requires these field names to be public.
-	//       Otherwise, we would prefer them to be private.
+	// Unwrap converts deserialized data back into item if necessary.
+	// Objects must pass this down to embedded wrappers.
+	Unwrap() error
+}
+
+// Wrapper around an item to be serialized.
+// The item will be represented by an interface.
+type Wrapper[T Wrappable] interface {
+	// Wrap prepares the item for serialization if necessary.
+	Wrap() error
+
+	// Unwrap converts deserialized data back into item if necessary.
+	Unwrap() error
+
+	// Get the wrapped item.
+	Get() T
+
+	// Set the wrapped item.
+	Set(T)
 }
 
 // Wrap a Wrappable item in a wrapper that can handle serialization.
-func Wrap[V Wrappable](contents V) (*Wrapper[V], error) {
-	if typeName, err := reg.NameFor(contents); err != nil {
-		return nil, fmt.Errorf("get type name for %#v: %w", contents, err)
-	} else {
-		return &Wrapper[V]{
-			TypeName: typeName,
-			Contents: contents,
-		}, nil
-	}
+func Wrap[W Wrappable](item W) *wrapper[W] {
+	w := new(wrapper[W])
+	w.Set(item)
+	return w
 }
 
-// Get the contents of a wrapped item (the item itself).
-func (w Wrapper[V]) Get() V {
-	return w.Contents
+var _ = (Wrapper[Wrappable])(&wrapper[Wrappable]{})
+
+type wrapper[T Wrappable] struct {
+	typeName string
+	item     T
+}
+
+var errItemIsNil = errors.New("item is nil")
+
+// Wrap prepares the item for serialization if necessary.
+func (w *wrapper[T]) Wrap() error { // Nothing to do here.
+	if check.IsZero(w.item) {
+		return check.ErrIsZero
+	}
+	var err error
+	if w.typeName, err = reg.NameFor(w.item); err != nil {
+		return fmt.Errorf("get type name for %#v: %w", w.item, err)
+	}
+	if err = w.item.Wrap(); err != nil {
+		return fmt.Errorf("pass Wrap() to wrapped item: %w", err)
+	}
+	return nil
+}
+
+// Unwrap converts deserialized data back into item if necessary.
+func (w *wrapper[T]) Unwrap() error {
+	if check.IsZero(w.item) {
+		return check.ErrIsZero
+	}
+	if err := w.item.Unwrap(); err != nil {
+		return fmt.Errorf("pass Unwrap() to wrapped item: %w", err)
+	}
+	return nil
+}
+
+// Get the wrapped item.
+func (w *wrapper[T]) Get() T {
+	return w.item
+}
+
+// Set the wrapped item.
+func (w *wrapper[T]) Set(t T) {
+	w.item = t
 }

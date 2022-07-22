@@ -2,10 +2,15 @@ package test
 
 import (
 	"time"
+
+	"github.com/madkins23/go-serial/proxy"
 )
 
 var _ Investment = &Stock{}
 var _ Investment = &Bond{}
+
+var _ proxy.Wrappable = &Stock{}
+var _ proxy.Wrappable = &Bond{}
 
 //////////////////////////////////////////////////////////////////////////
 

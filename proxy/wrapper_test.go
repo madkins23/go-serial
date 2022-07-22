@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/madkins23/go-utils/check"
+
 	"github.com/madkins23/go-type/reg"
 )
 
@@ -33,7 +35,6 @@ type Goober interface {
 }
 
 type MyGoober struct {
-	Goober
 	name string
 	age  uint8
 }
@@ -46,31 +47,51 @@ func (mg *MyGoober) Age() uint8 {
 	return mg.age
 }
 
+func (mg *MyGoober) Wrap() error {
+	return nil
+}
+
+func (mg *MyGoober) Unwrap() error {
+	return nil
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 const testDataType = "MyGoober"
 const testName = "test"
-const testType = "type"
 const testAge = uint8(23)
 
-func (suite *WrapperTestSuite) TestWrapper() {
-	myGoober := new(MyGoober)
-	myGoober.name = testName
-	myGoober.age = testAge
+func (suite *WrapperTestSuite) TestNoItem() {
+	badWrapper := Wrap[Goober](nil)
+	suite.Assert().ErrorIs(badWrapper.Wrap(), check.ErrIsZero)
+	suite.Assert().ErrorIs(badWrapper.Unwrap(), check.ErrIsZero)
+}
 
-	wrappedGoober, err := Wrap[Goober](myGoober)
-	suite.Require().NoError(err)
+func (suite *WrapperTestSuite) TestWrapper() {
+	myGoober := &MyGoober{
+		name: testName,
+		age:  testAge,
+	}
+
+	// Wrap the specific object.
+	wrappedGoober := Wrap[Goober](myGoober)
 	suite.Require().NotNil(wrappedGoober)
 
+	suite.Assert().NoError(wrappedGoober.Wrap())
+	// Serialization and deserialization would occur here.
+	suite.Assert().NoError(wrappedGoober.Unwrap())
+
+	// Get deserialized object.
 	unwrappedGoober := wrappedGoober.Get()
 	suite.Require().NotNil(unwrappedGoober)
 	suite.Assert().Equal(unwrappedGoober.Name(), testName)
 	suite.Assert().Equal(unwrappedGoober.Age(), testAge)
 
-	unwrappedMyGoober, ok := unwrappedGoober.(*MyGoober) // TODO: This syntax is a little painful.
+	// Convert interface object to struct object pointer.
+	unwrappedMyGoober, ok := unwrappedGoober.(*MyGoober)
 	suite.Require().True(ok)
 	suite.Require().NotNil(unwrappedMyGoober)
 	suite.Assert().Equal(unwrappedMyGoober.name, testName)
 	suite.Assert().Equal(unwrappedMyGoober.age, testAge)
-	suite.Assert().True(strings.Contains(wrappedGoober.TypeName, testDataType))
+	suite.Assert().True(strings.Contains(wrappedGoober.typeName, testDataType))
 }
