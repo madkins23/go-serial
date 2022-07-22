@@ -62,9 +62,9 @@ const testName = "test"
 const testAge = uint8(23)
 
 func (suite *WrapperTestSuite) TestNoItem() {
-	badWrapper := Wrap[Goober](nil)
-	suite.Assert().ErrorIs(badWrapper.Wrap(), check.ErrIsZero)
-	suite.Assert().ErrorIs(badWrapper.Unwrap(), check.ErrIsZero)
+	noItemWrapper := Wrap[Goober](nil)
+	suite.Assert().ErrorIs(noItemWrapper.Wrap(), check.ErrIsZero)
+	suite.Assert().ErrorIs(noItemWrapper.Unwrap(), check.ErrIsZero)
 }
 
 func (suite *WrapperTestSuite) TestWrapper() {

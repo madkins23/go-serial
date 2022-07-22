@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/madkins23/go-type/reg"
@@ -23,17 +22,17 @@ type Wrappable interface {
 // Wrapper around an item to be serialized.
 // The item will be represented by an interface.
 type Wrapper[T Wrappable] interface {
-	// Wrap prepares the item for serialization if necessary.
-	Wrap() error
-
-	// Unwrap converts deserialized data back into item if necessary.
-	Unwrap() error
-
 	// Get the wrapped item.
 	Get() T
 
 	// Set the wrapped item.
 	Set(T)
+
+	// Wrap prepares the item for serialization if necessary.
+	Wrap() error
+
+	// Unwrap converts deserialized data back into item if necessary.
+	Unwrap() error
 }
 
 // Wrap a Wrappable item in a wrapper that can handle serialization.
@@ -50,7 +49,15 @@ type wrapper[T Wrappable] struct {
 	item     T
 }
 
-var errItemIsNil = errors.New("item is nil")
+// Get the wrapped item.
+func (w *wrapper[T]) Get() T {
+	return w.item
+}
+
+// Set the wrapped item.
+func (w *wrapper[T]) Set(t T) {
+	w.item = t
+}
 
 // Wrap prepares the item for serialization if necessary.
 func (w *wrapper[T]) Wrap() error { // Nothing to do here.
@@ -76,14 +83,4 @@ func (w *wrapper[T]) Unwrap() error {
 		return fmt.Errorf("pass Unwrap() to wrapped item: %w", err)
 	}
 	return nil
-}
-
-// Get the wrapped item.
-func (w *wrapper[T]) Get() T {
-	return w.item
-}
-
-// Set the wrapped item.
-func (w *wrapper[T]) Set(t T) {
-	w.item = t
 }
