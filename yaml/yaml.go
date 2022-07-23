@@ -2,97 +2,75 @@ package yaml
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/madkins23/go-type/reg"
+
+	"github.com/madkins23/go-serial/proxy"
 )
 
-//////////////////////////////////////////////////////////////////////////
-
-// Wrapper is used to attach a type name to an item to be serialized.
-// This supports re-creating the correct type for filling an interface field.
-type Wrapper struct {
-	TypeName string
-	Contents interface{}
+// Wrap a Wrappable item in a wrapper that can handle serialization.
+// Creates a proxy.Wrapper object but doesn't Wrap() it for serialization.
+func Wrap[W proxy.Wrappable](item W) *wrapper[W] {
+	w := new(wrapper[W])
+	w.Set(item)
+	return w
 }
 
-// WrapItem returns the specified item wrapped for serialization.
-func WrapItem(item interface{}) (*Wrapper, error) {
-	typeName, err := reg.NameFor(item)
-	if typeName, err = reg.NameFor(item); err != nil {
-		return nil, fmt.Errorf("get type name for %#v: %w", item, err)
+var _ = (proxy.Wrapper[proxy.Wrappable])(&wrapper[proxy.Wrappable]{})
+
+// wrapper is used to attach a type name to an item to be serialized.
+// This supports re-creating the correct type for filling an interface field.
+type wrapper[T proxy.Wrappable] struct {
+	TypeName string `yaml:"type"`
+	RawForm  string `yaml:"data"`
+	item     T
+}
+
+// Get the wrapped item.
+func (w *wrapper[T]) Get() T {
+	return w.item
+}
+
+// Set the wrapped item.
+func (w *wrapper[T]) Set(t T) {
+	w.item = t
+}
+
+// Wrap prepares the item for serialization if necessary.
+func (w *wrapper[T]) Wrap() error {
+	var err error
+	if w.TypeName, err = reg.NameFor(w.item); err != nil {
+		return fmt.Errorf("get type name for %#v: %w", w.item, err)
 	}
 
-	return &Wrapper{
-		TypeName: typeName,
-		Contents: item,
-	}, nil
+	build := &strings.Builder{}
+	encoder := yaml.NewEncoder(build)
+	if err = encoder.Encode(w.item); err != nil {
+		return fmt.Errorf("marshal wrapper item: %w", err)
+	}
+	w.RawForm = build.String()
+
+	return nil
 }
 
-// UnwrapItem returns the object contained in the wrapper contained in the specified YAML node.
+// Unwrap converts deserialized data back into the item if necessary.
 // The type name contained in the wrapper is used to
 // create an appropriate instance to which the JSON contents are decoded.
-func UnwrapItem(node *yaml.Node) (interface{}, error) {
-	if wrapper, err := NodeAsMap(node); err != nil {
-		return nil, fmt.Errorf("get wrapper map: %w", err)
-	} else if typeNode, found := wrapper["typename"]; !found {
-		return nil, fmt.Errorf("no type name in wrapper")
-	} else if typeName, err := NodeAsString(typeNode); err != nil {
-		return nil, fmt.Errorf("wrapper type name not string")
-	} else if typeName == "" {
-		return nil, fmt.Errorf("empty type name in wrapper")
-	} else if itemNode, found := wrapper["contents"]; !found {
-		return nil, fmt.Errorf("no wrapper contents")
-	} else if item, err := reg.Make(typeName); err != nil {
-		return nil, fmt.Errorf("make instance of type %s: %w", typeName, err)
-	} else if err := itemNode.Decode(item); err != nil {
-		return nil, fmt.Errorf("decode item node")
+func (w *wrapper[T]) Unwrap() error {
+	var ok bool
+	if w.TypeName == "" {
+		return fmt.Errorf("empty type field")
+	} else if temp, err := reg.Make(w.TypeName); err != nil {
+		return fmt.Errorf("make instance of type %s: %w", w.TypeName, err)
+	} else if err = yaml.NewDecoder(strings.NewReader(string(w.RawForm))).Decode(temp); err != nil {
+		return fmt.Errorf("decode wrapper contents: %w", err)
+	} else if w.item, ok = temp.(T); !ok {
+		// TODO: How to get name of T?
+		return fmt.Errorf("type %s not generic type", w.TypeName)
 	} else {
-		return item, nil
+		return nil
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-// Functions to manipulate yaml.Node objects.
-
-// NodeAsArray returns an array of yaml.Node objects contained in the specified node.
-// An error is returned if the specified node does not contain an array.
-func NodeAsArray(node *yaml.Node) ([]*yaml.Node, error) {
-	if node.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("node not array")
-	}
-
-	return node.Content, nil
-}
-
-// NodeAsMap returns a map of yaml.Node objects indexed by name contained in the specified node.
-// An error is returned if the specified node does not contain a map.
-func NodeAsMap(node *yaml.Node) (map[string]*yaml.Node, error) {
-	if node.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("node not map")
-	} else if len(node.Content)%2 != 0 {
-		return nil, fmt.Errorf("odd number of node contents")
-	}
-
-	nodeMap := make(map[string]*yaml.Node)
-	for i := 0; i < len(node.Content); i += 2 {
-		if key, err := NodeAsString(node.Content[i]); err != nil {
-			return nil, fmt.Errorf("get key: %w", err)
-		} else {
-			nodeMap[key] = node.Content[i+1]
-		}
-	}
-
-	return nodeMap, nil
-}
-
-// NodeAsString the string contents of the specified node.
-// An error is returned if the specified node is not a string.
-func NodeAsString(node *yaml.Node) (string, error) {
-	if node.Kind != yaml.ScalarNode {
-		return "", fmt.Errorf("node not scalar")
-	}
-
-	return node.Value, nil
 }

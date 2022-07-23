@@ -54,6 +54,7 @@ func (a *Account) MakeFakeUsing(costco, walmart *Stock, tBill *Bond) {
 //////////////////////////////////////////////////////////////////////////
 
 type Investment interface {
+	proxy.Wrappable
 	CurrentValue() (float32, error)
 	ClearPrivateFields()
 }
@@ -107,6 +108,18 @@ func MakeWalmart() *Stock {
 	return (&Stock{}).ConfigureWalmart()
 }
 
+//------------------------------------------------------------------------
+// Required to make Stock implement proxy.Wrappable.
+// There is nothing to do here since Stock contains no interface objects.
+
+func (s *Stock) Wrap() error {
+	return nil
+}
+
+func (s *Stock) Unwrap() error {
+	return nil
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 type Bond struct {
@@ -138,4 +151,16 @@ func (b *Bond) ConfigureTBill() *Bond {
 
 func MakeTBill() *Bond {
 	return (&Bond{}).ConfigureTBill()
+}
+
+//------------------------------------------------------------------------
+// Required to make Bond implement proxy.Wrappable.
+// There is nothing to do here since Bond contains no interface objects.
+
+func (b *Bond) Wrap() error {
+	return nil
+}
+
+func (b *Bond) Unwrap() error {
+	return nil
 }

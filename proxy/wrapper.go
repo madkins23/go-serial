@@ -7,18 +7,6 @@ import (
 	"github.com/madkins23/go-utils/check"
 )
 
-// Wrappable provides the interface for objects that can be wrapped.
-//  TODO(mAdkins): is this necessary?
-type Wrappable interface {
-	// Wrap prepares the item for serialization if necessary.
-	// Objects must pass this down to embedded wrappers.
-	Wrap() error
-
-	// Unwrap converts deserialized data back into item if necessary.
-	// Objects must pass this down to embedded wrappers.
-	Unwrap() error
-}
-
 // Wrapper around an item to be serialized.
 // The item will be represented by an interface.
 type Wrapper[T Wrappable] interface {
@@ -35,6 +23,20 @@ type Wrapper[T Wrappable] interface {
 	Unwrap() error
 }
 
+// Wrappable provides the interface for objects that can be wrapped.
+//  TODO(mAdkins): is this necessary?
+type Wrappable interface {
+	// Wrap prepares the item for serialization if necessary.
+	// Objects must pass this down to embedded wrappers.
+	Wrap() error
+
+	// Unwrap converts deserialized data back into item if necessary.
+	// Objects must pass this down to embedded wrappers.
+	Unwrap() error
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 // Wrap a Wrappable item in a wrapper that can handle serialization.
 func Wrap[W Wrappable](item W) *wrapper[W] {
 	w := new(wrapper[W])
@@ -42,12 +44,14 @@ func Wrap[W Wrappable](item W) *wrapper[W] {
 	return w
 }
 
-var _ = (Wrapper[Wrappable])(&wrapper[Wrappable]{})
-
+// Default proxy.Wrapper object.
+// TODO: is this only used for testing?
 type wrapper[T Wrappable] struct {
 	typeName string
 	item     T
 }
+
+var _ = (Wrapper[Wrappable])(&wrapper[Wrappable]{})
 
 // Get the wrapped item.
 func (w *wrapper[T]) Get() T {
@@ -74,7 +78,7 @@ func (w *wrapper[T]) Wrap() error { // Nothing to do here.
 	return nil
 }
 
-// Unwrap converts deserialized data back into item if necessary.
+// Unwrap converts deserialized data back into the item if necessary.
 func (w *wrapper[T]) Unwrap() error {
 	if check.IsZero(w.item) {
 		return check.ErrIsZero

@@ -48,7 +48,8 @@ func (suite *YamlTestSuite) TestMarshalCycle() {
 	if suite.showAccount {
 		fmt.Println(string(marshaled))
 	}
-	suite.Assert().Contains(string(marshaled), "typename:")
+	suite.Assert().Contains(string(marshaled), "type:")
+	suite.Assert().Contains(string(marshaled), "data:")
 	suite.Assert().Contains(string(marshaled), "[test]Stock")
 	suite.Assert().Contains(string(marshaled), "[test]Bond")
 
@@ -85,9 +86,9 @@ func MakeAccount() *Account {
 
 type xferAccount struct {
 	Account struct {
-		Favorite  *Wrapper
-		Positions []*Wrapper
-		Lookup    map[string]*Wrapper
+		Favorite  *wrapper[test.Investment]
+		Positions []*wrapper[test.Investment]
+		Lookup    map[string]*wrapper[test.Investment]
 	}
 	test.AccountData
 }
@@ -98,25 +99,27 @@ func (a *Account) MarshalYAML() (interface{}, error) {
 	}
 
 	// Wrap objects referenced by interface fields.
-	var err error
 	if a.Favorite != nil {
-		if xfer.Account.Favorite, err = WrapItem(a.Favorite); err != nil {
+		xfer.Account.Favorite = Wrap[test.Investment](a.Favorite)
+		if err := xfer.Account.Favorite.Wrap(); err != nil {
 			return nil, fmt.Errorf("wrap favorite: %w", err)
 		}
 	}
 	if a.Positions != nil {
-		fixed := make([]*Wrapper, len(a.Positions))
+		fixed := make([]*wrapper[test.Investment], len(a.Positions))
 		for i, pos := range a.Positions {
-			if fixed[i], err = WrapItem(pos); err != nil {
+			fixed[i] = Wrap[test.Investment](pos)
+			if err := fixed[i].Wrap(); err != nil {
 				return nil, fmt.Errorf("wrap Positions item: %w", err)
 			}
 		}
 		xfer.Account.Positions = fixed
 	}
 	if a.Lookup != nil {
-		fixed := make(map[string]*Wrapper, len(a.Lookup))
+		fixed := make(map[string]*wrapper[test.Investment], len(a.Lookup))
 		for k, pos := range a.Lookup {
-			if fixed[k], err = WrapItem(pos); err != nil {
+			fixed[k] = Wrap[test.Investment](pos)
+			if err := fixed[k].Wrap(); err != nil {
 				return nil, fmt.Errorf("wrap Lookup item: %w", err)
 			}
 		}
@@ -127,64 +130,42 @@ func (a *Account) MarshalYAML() (interface{}, error) {
 }
 
 func (a *Account) UnmarshalYAML(node *yaml.Node) error {
-	var accountData = test.AccountData{}
+	xfer := &xferAccount{}
+	if err := node.Decode(&xfer); err != nil {
+		return fmt.Errorf("unmarshal to transfer account: %w", err)
+	}
 
-	if topAccount, err := NodeAsMap(node); err != nil {
-		return fmt.Errorf("get top account map: %w", err)
-	} else if subNode, found := topAccount["account"]; !found {
-		return fmt.Errorf("no sub account")
-	} else if subAccount, err := NodeAsMap(subNode); err != nil {
-		return fmt.Errorf("get sub account map: %w", err)
-	} else if datNode, found := topAccount["accountdata"]; !found {
-		return fmt.Errorf("no account data")
-	} else if err = datNode.Decode(&accountData); err != nil {
-		return fmt.Errorf("decode account data: %w", err)
+	a.AccountData = xfer.AccountData
+
+	if err := xfer.Account.Favorite.Unwrap(); err != nil {
+		return fmt.Errorf("unwrap account favorite: %w", err)
 	} else {
-		a.AccountData = accountData
+		a.Favorite = xfer.Account.Favorite.Get()
+	}
 
-		// Unwrap objects referenced by interface fields.
-		if favorite, found := subAccount["favorite"]; found {
-			if a.Favorite, err = a.getInvestment(favorite); err != nil {
-				return fmt.Errorf("get Investment from Favorite: %w", err)
-			}
-		}
-		if posNode, found := subAccount["positions"]; found {
-			if positions, err := NodeAsArray(posNode); err != nil {
-				return fmt.Errorf("get positions array: %w", err)
+	if xfer.Account.Positions != nil {
+		fixed := make([]test.Investment, len(xfer.Account.Positions))
+		for i, wPos := range xfer.Account.Positions {
+			if err := wPos.Unwrap(); err != nil {
+				return fmt.Errorf("get Investment from Positions: %w", err)
 			} else {
-				fixed := make([]test.Investment, len(positions))
-				for i, wPos := range positions {
-					if fixed[i], err = a.getInvestment(wPos); err != nil {
-						return fmt.Errorf("get Investment from Positions: %w", err)
-					}
-				}
-				a.Positions = fixed
+				fixed[i] = wPos.Get()
 			}
 		}
-		if lookNode, found := subAccount["lookup"]; found {
-			if positions, err := NodeAsMap(lookNode); err != nil {
-				return fmt.Errorf("get lookup map: %w", err)
+		a.Positions = fixed
+	}
+
+	if xfer.Account.Lookup != nil {
+		fixed := make(map[string]test.Investment, len(xfer.Account.Lookup))
+		for key, wPos := range xfer.Account.Lookup {
+			if err := wPos.Unwrap(); err != nil {
+				return fmt.Errorf("get Investment from Lookup: %w", err)
 			} else {
-				fixed := make(map[string]test.Investment, len(positions))
-				for key, wPos := range positions {
-					if fixed[key], err = a.getInvestment(wPos); err != nil {
-						return fmt.Errorf("get Investment from Positions: %w", err)
-					}
-				}
-				a.Lookup = fixed
+				fixed[key] = wPos.Get()
 			}
 		}
+		a.Lookup = fixed
 	}
 
 	return nil
-}
-
-func (a *Account) getInvestment(node *yaml.Node) (test.Investment, error) {
-	if item, err := UnwrapItem(node); err != nil {
-		return nil, fmt.Errorf("unwrap investment item: %w", err)
-	} else if investment, ok := item.(test.Investment); !ok {
-		return nil, fmt.Errorf("unwrapped item no investment")
-	} else {
-		return investment, nil
-	}
 }
