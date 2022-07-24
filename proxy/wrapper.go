@@ -63,7 +63,7 @@ func (w *wrapper[T]) Set(t T) {
 	w.item = t
 }
 
-// Wrap prepares the item for serialization if necessary.
+// Pack prepares the item for serialization if necessary.
 func (w *wrapper[T]) Pack() error { // Nothing to do here.
 	if check.IsZero(w.item) {
 		return check.ErrIsZero
@@ -78,7 +78,7 @@ func (w *wrapper[T]) Pack() error { // Nothing to do here.
 	return nil
 }
 
-// Unwrap converts deserialized data back into the item if necessary.
+// Unpack converts deserialized data back into the item if necessary.
 func (w *wrapper[T]) Unpack() error {
 	if check.IsZero(w.item) {
 		return check.ErrIsZero
