@@ -102,10 +102,10 @@ type xferAccount struct {
 func (a *Account) MarshalJSON() ([]byte, error) {
 	xfer := &xferAccount{AccountData: a.AccountData}
 
-	// Wrap objects referenced by interface fields.
+	// Pack objects referenced by interface fields.
 	if a.Favorite != nil {
 		xfer.Account.Favorite = Wrap[test.Investment](a.Favorite)
-		if err := xfer.Account.Favorite.Wrap(); err != nil {
+		if err := xfer.Account.Favorite.Pack(); err != nil {
 			return nil, fmt.Errorf("wrap favorite: %w", err)
 		}
 	}
@@ -113,7 +113,7 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 		fixed := make([]*wrapper[test.Investment], len(a.Positions))
 		for i, pos := range a.Positions {
 			fixed[i] = Wrap[test.Investment](pos)
-			if err := fixed[i].Wrap(); err != nil {
+			if err := fixed[i].Pack(); err != nil {
 				return nil, fmt.Errorf("wrap Positions item: %w", err)
 			}
 		}
@@ -123,7 +123,7 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 		fixed := make(map[string]*wrapper[test.Investment], len(a.Lookup))
 		for k, pos := range a.Lookup {
 			fixed[k] = Wrap[test.Investment](pos)
-			if err := fixed[k].Wrap(); err != nil {
+			if err := fixed[k].Pack(); err != nil {
 				return nil, fmt.Errorf("wrap Lookup item: %w", err)
 			}
 		}
@@ -141,7 +141,7 @@ func (a *Account) UnmarshalJSON(marshaled []byte) error {
 
 	a.AccountData = xfer.AccountData
 
-	if err := xfer.Account.Favorite.Unwrap(); err != nil {
+	if err := xfer.Account.Favorite.Unpack(); err != nil {
 		return fmt.Errorf("unwrap account favorite: %w", err)
 	} else {
 		a.Favorite = xfer.Account.Favorite.Get()
@@ -150,7 +150,7 @@ func (a *Account) UnmarshalJSON(marshaled []byte) error {
 	if xfer.Account.Positions != nil {
 		fixed := make([]test.Investment, len(xfer.Account.Positions))
 		for i, wPos := range xfer.Account.Positions {
-			if err := wPos.Unwrap(); err != nil {
+			if err := wPos.Unpack(); err != nil {
 				return fmt.Errorf("get Investment from Positions: %w", err)
 			} else {
 				fixed[i] = wPos.Get()
@@ -162,7 +162,7 @@ func (a *Account) UnmarshalJSON(marshaled []byte) error {
 	if xfer.Account.Lookup != nil {
 		fixed := make(map[string]test.Investment, len(xfer.Account.Lookup))
 		for key, wPos := range xfer.Account.Lookup {
-			if err := wPos.Unwrap(); err != nil {
+			if err := wPos.Unpack(); err != nil {
 				return fmt.Errorf("get Investment from Lookup: %w", err)
 			} else {
 				fixed[key] = wPos.Get()
@@ -178,7 +178,7 @@ func (a *Account) getInvestment(w *wrapper[test.Investment]) (test.Investment, e
 	var ok bool
 	var investment test.Investment
 	if w != nil {
-		if err := w.Unwrap(); err != nil {
+		if err := w.Unpack(); err != nil {
 			return nil, fmt.Errorf("unwrap item: %w", err)
 		} else if investment, ok = w.Get().(test.Investment); !ok {
 			return nil, fmt.Errorf("item %#v not Investment", w.Get())

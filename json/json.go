@@ -38,8 +38,8 @@ func (w *wrapper[T]) Set(t T) {
 	w.item = t
 }
 
-// Wrap prepares the item for serialization if necessary.
-func (w *wrapper[T]) Wrap() error {
+// Pack prepares the item for serialization if necessary.
+func (w *wrapper[T]) Pack() error {
 	var err error
 	if w.TypeName, err = reg.NameFor(w.item); err != nil {
 		return fmt.Errorf("get type name for %#v: %w", w.item, err)
@@ -56,10 +56,10 @@ func (w *wrapper[T]) Wrap() error {
 	return nil
 }
 
-// Unwrap converts deserialized data back into the item if necessary.
+// Unpack converts deserialized data back into the item if necessary.
 // The type name contained in the wrapper is used to
 // create an appropriate instance to which the JSON contents are decoded.
-func (w *wrapper[T]) Unwrap() error {
+func (w *wrapper[T]) Unpack() error {
 	var ok bool
 	if w.TypeName == "" {
 		return fmt.Errorf("empty type field")

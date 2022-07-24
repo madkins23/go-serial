@@ -108,17 +108,17 @@ func MakeWalmart() *Stock {
 	return (&Stock{}).ConfigureWalmart()
 }
 
-//------------------------------------------------------------------------
-// Required to make Stock implement proxy.Wrappable.
-// There is nothing to do here since Stock contains no interface objects.
-
-func (s *Stock) Wrap() error {
-	return nil
-}
-
-func (s *Stock) Unwrap() error {
-	return nil
-}
+////------------------------------------------------------------------------
+//// Required to make Stock implement proxy.Wrappable.
+//// There is nothing to do here since Stock contains no interface objects.
+//
+//func (s *Stock) Wrap() error {
+//	return nil
+//}
+//
+//func (s *Stock) Unwrap() error {
+//	return nil
+//}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -153,14 +153,14 @@ func MakeTBill() *Bond {
 	return (&Bond{}).ConfigureTBill()
 }
 
-//------------------------------------------------------------------------
-// Required to make Bond implement proxy.Wrappable.
-// There is nothing to do here since Bond contains no interface objects.
-
-func (b *Bond) Wrap() error {
-	return nil
-}
-
-func (b *Bond) Unwrap() error {
-	return nil
-}
+////------------------------------------------------------------------------
+//// Required to make Bond implement proxy.Wrappable.
+//// There is nothing to do here since Bond contains no interface objects.
+//
+//func (b *Bond) Wrap() error {
+//	return nil
+//}
+//
+//func (b *Bond) Unwrap() error {
+//	return nil
+//}

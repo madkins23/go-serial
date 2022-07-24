@@ -63,8 +63,8 @@ const testAge = uint8(23)
 
 func (suite *WrapperTestSuite) TestNoItem() {
 	noItemWrapper := Wrap[Goober](nil)
-	suite.Assert().ErrorIs(noItemWrapper.Wrap(), check.ErrIsZero)
-	suite.Assert().ErrorIs(noItemWrapper.Unwrap(), check.ErrIsZero)
+	suite.Assert().ErrorIs(noItemWrapper.Pack(), check.ErrIsZero)
+	suite.Assert().ErrorIs(noItemWrapper.Unpack(), check.ErrIsZero)
 }
 
 func (suite *WrapperTestSuite) TestWrapper() {
@@ -73,13 +73,13 @@ func (suite *WrapperTestSuite) TestWrapper() {
 		age:  testAge,
 	}
 
-	// Wrap the specific object.
+	// Pack the specific object.
 	wrappedGoober := Wrap[Goober](myGoober)
 	suite.Require().NotNil(wrappedGoober)
 
-	suite.Assert().NoError(wrappedGoober.Wrap())
+	suite.Assert().NoError(wrappedGoober.Pack())
 	// Serialization and deserialization would occur here.
-	suite.Assert().NoError(wrappedGoober.Unwrap())
+	suite.Assert().NoError(wrappedGoober.Unpack())
 
 	// Get deserialized object.
 	unwrappedGoober := wrappedGoober.Get()

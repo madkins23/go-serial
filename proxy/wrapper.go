@@ -16,23 +16,23 @@ type Wrapper[T Wrappable] interface {
 	// Set the wrapped item.
 	Set(T)
 
-	// Wrap prepares the item for serialization if necessary.
-	Wrap() error
+	// Pack prepares the item for serialization if necessary.
+	Pack() error
 
-	// Unwrap converts deserialized data back into item if necessary.
-	Unwrap() error
+	// Unpack converts deserialized data back into item if necessary.
+	Unpack() error
 }
 
 // Wrappable provides the interface for objects that can be wrapped.
 //  TODO(mAdkins): is this necessary?
 type Wrappable interface {
-	// Wrap prepares the item for serialization if necessary.
-	// Objects must pass this down to embedded wrappers.
-	Wrap() error
-
-	// Unwrap converts deserialized data back into item if necessary.
-	// Objects must pass this down to embedded wrappers.
-	Unwrap() error
+	//// Pack prepares the item for serialization if necessary.
+	//// Objects must pass this down to embedded wrappers.
+	//Pack() error
+	//
+	//// Unpack converts deserialized data back into item if necessary.
+	//// Objects must pass this down to embedded wrappers.
+	//Unpack() error
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,7 +64,7 @@ func (w *wrapper[T]) Set(t T) {
 }
 
 // Wrap prepares the item for serialization if necessary.
-func (w *wrapper[T]) Wrap() error { // Nothing to do here.
+func (w *wrapper[T]) Pack() error { // Nothing to do here.
 	if check.IsZero(w.item) {
 		return check.ErrIsZero
 	}
@@ -72,19 +72,19 @@ func (w *wrapper[T]) Wrap() error { // Nothing to do here.
 	if w.typeName, err = reg.NameFor(w.item); err != nil {
 		return fmt.Errorf("get type name for %#v: %w", w.item, err)
 	}
-	if err = w.item.Wrap(); err != nil {
-		return fmt.Errorf("pass Wrap() to wrapped item: %w", err)
-	}
+	//if err = w.item.Wrap(); err != nil {
+	//	return fmt.Errorf("pass Pack() to wrapped item: %w", err)
+	//}
 	return nil
 }
 
 // Unwrap converts deserialized data back into the item if necessary.
-func (w *wrapper[T]) Unwrap() error {
+func (w *wrapper[T]) Unpack() error {
 	if check.IsZero(w.item) {
 		return check.ErrIsZero
 	}
-	if err := w.item.Unwrap(); err != nil {
-		return fmt.Errorf("pass Unwrap() to wrapped item: %w", err)
-	}
+	//if err := w.item.Unwrap(); err != nil {
+	//	return fmt.Errorf("pass Unpack() to wrapped item: %w", err)
+	//}
 	return nil
 }
