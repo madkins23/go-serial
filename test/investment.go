@@ -128,18 +128,6 @@ func MakeWalmart() *Stock {
 	}
 }
 
-////------------------------------------------------------------------------
-//// Required to make Stock implement proxy.Wrappable.
-//// There is nothing to do here since Stock contains no interface objects.
-//
-//func (s *Stock) Wrap() error {
-//	return nil
-//}
-//
-//func (s *Stock) Unwrap() error {
-//	return nil
-//}
-
 //========================================================================
 
 type Bond struct {
@@ -155,17 +143,25 @@ type BondData struct {
 	notes    string
 }
 
+func (bd *BondData) ClearPrivateFields() {
+	bd.notes = ""
+}
+
 func (b *Bond) CurrentValue() (float32, error) {
 	return b.Data.Value, nil
 }
 
 func (b *Bond) ClearPrivateFields() {
-	b.Data.notes = ""
+	b.Data.ClearPrivateFields()
 }
 
 func (b *Bond) ConfigureTBill() {
-	b.Source = &Federal{Class: "T-Bill"}
-	b.Data = BondData{
+	b.Source = TBillSource()
+	b.Data = TBillBondData()
+}
+
+func TBillBondData() BondData {
+	return BondData{
 		Name:     "T-Bill",
 		Value:    1000,
 		Interest: 0.75,
@@ -174,9 +170,17 @@ func (b *Bond) ConfigureTBill() {
 	}
 }
 
+func TBillSource() Borrower {
+	return &Federal{Class: "T-Bill"}
+}
+
 func (b *Bond) ConfigureStateBond() {
-	b.Source = &State{State: "Confusion"}
-	b.Data = BondData{
+	b.Source = StateBondSource()
+	b.Data = StateBondData()
+}
+
+func StateBondData() BondData {
+	return BondData{
 		Name:     "Roads",
 		Value:    1000,
 		Interest: 1.75,
@@ -185,17 +189,9 @@ func (b *Bond) ConfigureStateBond() {
 	}
 }
 
-////------------------------------------------------------------------------
-//// Required to make Bond implement proxy.Wrappable.
-//// There is nothing to do here since Bond contains no interface objects.
-//
-//func (b *Bond) Wrap() error {
-//	return nil
-//}
-//
-//func (b *Bond) Unwrap() error {
-//	return nil
-//}
+func StateBondSource() Borrower {
+	return &State{State: "Confusion"}
+}
 
 //////////////////////////////////////////////////////////////////////////
 

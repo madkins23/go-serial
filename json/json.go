@@ -52,7 +52,8 @@ func (w *Wrapper[T]) MarshalJSON() ([]byte, error) {
 	if err = encoder.Encode(w.item); err != nil {
 		return nil, fmt.Errorf("marshal packed area: %w", err)
 	}
-	w.Packed.RawForm = []byte(build.String())
+	// Must get rid of extraneous ending newline that is not unmarshaled.
+	w.Packed.RawForm = []byte(strings.TrimSuffix(build.String(), "\n"))
 
 	return json.Marshal(w.Packed)
 }

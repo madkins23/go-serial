@@ -97,6 +97,15 @@ func (pa *ProxyAccount) MakeFake(investments ...test.Investment) {
 	acct.MakeFake(investments...)
 	pa.AccountData = acct.AccountData
 	pa.Favorite = Wrap[test.Investment](acct.Favorite)
+	pa.Positions = make([]*Wrapper[test.Investment], len(investments))
+	pa.Lookup = make(map[string]*Wrapper[test.Investment])
+	for i, investment := range investments {
+		pa.Positions[i] = Wrap[test.Investment](investment)
+		switch it := investment.(type) {
+		case *test.Stock:
+			pa.Lookup[it.Symbol] = Wrap[test.Investment](investment)
+		}
+	}
 }
 
 func MakeProxyAccount() *ProxyAccount {
@@ -109,113 +118,29 @@ func MakeProxyAccount() *ProxyAccount {
 	return account
 }
 
-type xferProxyAccount struct {
-	AccountData test.AccountData
-	Account     struct {
-		Favorite  *Wrapper[test.Investment]
-		Positions []*Wrapper[test.Investment]
-		Lookup    map[string]*Wrapper[test.Investment]
-	}
-}
-
-func (a *ProxyAccount) MarshalJSON() ([]byte, error) {
-
-	return json.Marshal(xfer)
-}
-
-func (a *ProxyAccount) UnmarshalJSON(marshaled []byte) error {
-	xfer := &xferProxyAccount{}
-	if err := json.Unmarshal(marshaled, xfer); err != nil {
-		return fmt.Errorf("unmarshal to transfer account: %w", err)
-	}
-
-	a.AccountData = xfer.AccountData
-
-	if err := xfer.Account.Favorite.Unpack(); err != nil {
-		return fmt.Errorf("unpack favorite: %w", err)
-	} else {
-		a.Favorite = xfer.Account.Favorite.Get()
-	}
-
-	if xfer.Account.Positions != nil {
-		fixed := make([]test.Investment, len(xfer.Account.Positions))
-		for i, wPos := range xfer.Account.Positions {
-			if err := wPos.Unpack(); err != nil {
-				return fmt.Errorf("unpack position: %w", err)
-			} else {
-				fixed[i] = wPos.Get()
-			}
-		}
-		a.Positions = fixed
-	}
-
-	if xfer.Account.Lookup != nil {
-		fixed := make(map[string]test.Investment, len(xfer.Account.Lookup))
-		for key, wPos := range xfer.Account.Lookup {
-			if err := wPos.Unpack(); err != nil {
-				return fmt.Errorf("unpack position from lookup: %w", err)
-			} else {
-				fixed[key] = wPos.Get()
-			}
-		}
-		a.Lookup = fixed
-	}
-
-	return nil
-}
-
-func (a *ProxyAccount) getInvestment(w *wrapper[test.Investment]) (test.Investment, error) {
-	var ok bool
-	var investment test.Investment
-	if w != nil {
-		if err := w.Unpack(); err != nil {
-			return nil, fmt.Errorf("unwrap item: %w", err)
-		} else if investment, ok = w.Get().(test.Investment); !ok {
-			return nil, fmt.Errorf("item %#v not Investment", w.Get())
-		}
-	}
-
-	return investment, nil
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 type ProxyBond struct {
-	test.Bond
+	// Can't embed test.Bond since we're changing its fields.
+
+	Source *Wrapper[test.Borrower]
+	Data   test.BondData
 }
 
-type xferProxyBond struct {
-	Source   *wrapper[test.Borrower]
-	BondData test.BondData
+func (b *ProxyBond) CurrentValue() (float32, error) {
+	return b.Data.Value, nil
 }
 
-func (b *ProxyBond) MarshalJSON() ([]byte, error) {
-	xfer := &xferProxyBond{BondData: b.Data}
-
-	// Pack objects referenced by interface fields.
-	if b.Source != nil {
-		xfer.Source = Wrap[test.Borrower](b.Source)
-		if err := xfer.Source.Pack(); err != nil {
-			return nil, fmt.Errorf("pack borrower: %w", err)
-		}
-	}
-
-	return json.Marshal(xfer)
+func (b *ProxyBond) ClearPrivateFields() {
+	b.Data.ClearPrivateFields()
 }
 
-func (b *ProxyBond) UnmarshalJSON(marshaled []byte) error {
-	xfer := &xferProxyBond{}
-	if err := json.Unmarshal(marshaled, xfer); err != nil {
-		return fmt.Errorf("unmarshal to transfer account: %w", err)
-	}
+func (b *ProxyBond) ConfigureTBill() {
+	b.Source = Wrap[test.Borrower](test.TBillSource())
+	b.Data = test.TBillBondData()
+}
 
-	b.Data = xfer.BondData
-
-	if err := xfer.Source.Unpack(); err != nil {
-		return fmt.Errorf("unpack borrower: %w", err)
-	} else {
-		b.Source = xfer.Source.Get()
-	}
-
-	return nil
+func (b *ProxyBond) ConfigureStateBond() {
+	b.Source = Wrap[test.Borrower](test.StateBondSource())
+	b.Data = test.TBillBondData()
 }
