@@ -28,9 +28,11 @@ func (suite *YamlTestSuite) SetupSuite() {
 	}
 	suite.Require().NoError(reg.AddAlias("test", test.Account{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&test.Stock{}))
-	suite.Require().NoError(reg.Register(&test.Bond{}))
+	suite.Require().NoError(reg.Register(&test.Federal{}))
+	suite.Require().NoError(reg.Register(&test.State{}))
 	suite.Require().NoError(reg.AddAlias("yamlTest", Account{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&Account{}))
+	suite.Require().NoError(reg.Register(&Bond{}))
 }
 
 func TestYamlSuite(t *testing.T) {
@@ -51,7 +53,9 @@ func (suite *YamlTestSuite) TestMarshalCycle() {
 	suite.Assert().Contains(string(marshaled), "type:")
 	suite.Assert().Contains(string(marshaled), "data:")
 	suite.Assert().Contains(string(marshaled), "[test]Stock")
-	suite.Assert().Contains(string(marshaled), "[test]Bond")
+	suite.Assert().Contains(string(marshaled), "[test]Federal")
+	suite.Assert().Contains(string(marshaled), "[test]State")
+	suite.Assert().Contains(string(marshaled), "[yamlTest]Bond")
 
 	var newAccount Account
 	suite.Require().NoError(yaml.Unmarshal(marshaled, &newAccount))
@@ -80,7 +84,11 @@ type Account struct {
 
 func MakeAccount() *Account {
 	account := &Account{}
-	account.MakeFake()
+	tBill := &Bond{}
+	tBill.ConfigureTBill()
+	state := &Bond{}
+	state.ConfigureStateBond()
+	account.MakeFake(test.MakeCostco(), test.MakeWalmart(), tBill, state)
 	return account
 }
 
@@ -165,6 +173,48 @@ func (a *Account) UnmarshalYAML(node *yaml.Node) error {
 			}
 		}
 		a.Lookup = fixed
+	}
+
+	return nil
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+type Bond struct {
+	test.Bond
+}
+
+type xferBond struct {
+	Source   *wrapper[test.Borrower]
+	BondData test.BondData
+}
+
+func (b *Bond) MarshalYAML() (interface{}, error) {
+	xfer := &xferBond{BondData: b.Data}
+
+	// Pack objects referenced by interface fields.
+	if b.Source != nil {
+		xfer.Source = Wrap[test.Borrower](b.Source)
+		if err := xfer.Source.Pack(); err != nil {
+			return nil, fmt.Errorf("pack borrower: %w", err)
+		}
+	}
+
+	return xfer, nil
+}
+
+func (b *Bond) UnmarshalYAML(node *yaml.Node) error {
+	xfer := &xferBond{}
+	if err := node.Decode(&xfer); err != nil {
+		return fmt.Errorf("unmarshal to transfer bond: %w", err)
+	}
+
+	b.Data = xfer.BondData
+
+	if err := xfer.Source.Unpack(); err != nil {
+		return fmt.Errorf("unpack borrower: %w", err)
+	} else {
+		b.Source = xfer.Source.Get()
 	}
 
 	return nil

@@ -29,9 +29,11 @@ func (suite *JsonTestSuite) SetupSuite() {
 	}
 	suite.Require().NoError(reg.AddAlias("test", test.Account{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&test.Stock{}))
-	suite.Require().NoError(reg.Register(&test.Bond{}))
+	suite.Require().NoError(reg.Register(&test.Federal{}))
+	suite.Require().NoError(reg.Register(&test.State{}))
 	suite.Require().NoError(reg.AddAlias("jsonTest", Account{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&Account{}))
+	suite.Require().NoError(reg.Register(&Bond{}))
 }
 
 func TestJsonSuite(t *testing.T) {
@@ -57,7 +59,9 @@ func (suite *JsonTestSuite) TestMarshalCycle() {
 	suite.Assert().Contains(string(marshaled), "type\":")
 	suite.Assert().Contains(string(marshaled), "data\":")
 	suite.Assert().Contains(string(marshaled), "[test]Stock")
-	suite.Assert().Contains(string(marshaled), "[test]Bond")
+	suite.Assert().Contains(string(marshaled), "[test]Federal")
+	suite.Assert().Contains(string(marshaled), "[test]State")
+	suite.Assert().Contains(string(marshaled), "[jsonTest]Bond")
 
 	var newAccount Account
 	suite.Require().NoError(json.Unmarshal(marshaled, &newAccount))
@@ -86,7 +90,11 @@ type Account struct {
 
 func MakeAccount() *Account {
 	account := &Account{}
-	account.MakeFake()
+	tBill := &Bond{}
+	tBill.ConfigureTBill()
+	state := &Bond{}
+	state.ConfigureStateBond()
+	account.MakeFake(test.MakeCostco(), test.MakeWalmart(), tBill, state)
 	return account
 }
 
@@ -106,7 +114,7 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 	if a.Favorite != nil {
 		xfer.Account.Favorite = Wrap[test.Investment](a.Favorite)
 		if err := xfer.Account.Favorite.Pack(); err != nil {
-			return nil, fmt.Errorf("wrap favorite: %w", err)
+			return nil, fmt.Errorf("pack favorite: %w", err)
 		}
 	}
 	if a.Positions != nil {
@@ -114,7 +122,7 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 		for i, pos := range a.Positions {
 			fixed[i] = Wrap[test.Investment](pos)
 			if err := fixed[i].Pack(); err != nil {
-				return nil, fmt.Errorf("wrap Positions item: %w", err)
+				return nil, fmt.Errorf("pack position: %w", err)
 			}
 		}
 		xfer.Account.Positions = fixed
@@ -124,7 +132,7 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 		for k, pos := range a.Lookup {
 			fixed[k] = Wrap[test.Investment](pos)
 			if err := fixed[k].Pack(); err != nil {
-				return nil, fmt.Errorf("wrap Lookup item: %w", err)
+				return nil, fmt.Errorf("pack position in lookup: %w", err)
 			}
 		}
 		xfer.Account.Lookup = fixed
@@ -142,7 +150,7 @@ func (a *Account) UnmarshalJSON(marshaled []byte) error {
 	a.AccountData = xfer.AccountData
 
 	if err := xfer.Account.Favorite.Unpack(); err != nil {
-		return fmt.Errorf("unwrap account favorite: %w", err)
+		return fmt.Errorf("unpack favorite: %w", err)
 	} else {
 		a.Favorite = xfer.Account.Favorite.Get()
 	}
@@ -151,7 +159,7 @@ func (a *Account) UnmarshalJSON(marshaled []byte) error {
 		fixed := make([]test.Investment, len(xfer.Account.Positions))
 		for i, wPos := range xfer.Account.Positions {
 			if err := wPos.Unpack(); err != nil {
-				return fmt.Errorf("get Investment from Positions: %w", err)
+				return fmt.Errorf("unpack position: %w", err)
 			} else {
 				fixed[i] = wPos.Get()
 			}
@@ -163,7 +171,7 @@ func (a *Account) UnmarshalJSON(marshaled []byte) error {
 		fixed := make(map[string]test.Investment, len(xfer.Account.Lookup))
 		for key, wPos := range xfer.Account.Lookup {
 			if err := wPos.Unpack(); err != nil {
-				return fmt.Errorf("get Investment from Lookup: %w", err)
+				return fmt.Errorf("unpack position from lookup: %w", err)
 			} else {
 				fixed[key] = wPos.Get()
 			}
@@ -189,6 +197,48 @@ func (a *Account) getInvestment(w *wrapper[test.Investment]) (test.Investment, e
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+type Bond struct {
+	test.Bond
+}
+
+type xferBond struct {
+	Source   *wrapper[test.Borrower]
+	BondData test.BondData
+}
+
+func (b *Bond) MarshalJSON() ([]byte, error) {
+	xfer := &xferBond{BondData: b.Data}
+
+	// Pack objects referenced by interface fields.
+	if b.Source != nil {
+		xfer.Source = Wrap[test.Borrower](b.Source)
+		if err := xfer.Source.Pack(); err != nil {
+			return nil, fmt.Errorf("pack borrower: %w", err)
+		}
+	}
+
+	return json.Marshal(xfer)
+}
+
+func (b *Bond) UnmarshalJSON(marshaled []byte) error {
+	xfer := &xferBond{}
+	if err := json.Unmarshal(marshaled, xfer); err != nil {
+		return fmt.Errorf("unmarshal to transfer account: %w", err)
+	}
+
+	b.Data = xfer.BondData
+
+	if err := xfer.Source.Unpack(); err != nil {
+		return fmt.Errorf("unpack borrower: %w", err)
+	} else {
+		b.Source = xfer.Source.Get()
+	}
+
+	return nil
+}
+
+//////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 // This section tests the newer "proxy" mechanism.
 // This requires all interface objects to be wrapped in proxy.Wrapper.
@@ -207,7 +257,9 @@ func (suite *JsonTestSuite) TestProxyMarshalCycle() {
 	suite.Assert().Contains(string(marshaled), "type\":")
 	suite.Assert().Contains(string(marshaled), "data\":")
 	suite.Assert().Contains(string(marshaled), "[test]Stock")
-	suite.Assert().Contains(string(marshaled), "[test]Bond")
+	suite.Assert().Contains(string(marshaled), "[test]Federal")
+	suite.Assert().Contains(string(marshaled), "[test]State")
+	suite.Assert().Contains(string(marshaled), "[jsonTest]Bond")
 
 	var newAccount Account
 	suite.Require().NoError(json.Unmarshal(marshaled, &newAccount))
