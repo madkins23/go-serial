@@ -15,24 +15,11 @@ type Wrapper[T Wrappable] interface {
 
 	// Set the wrapped item.
 	Set(T)
-
-	// Pack prepares the item for serialization if necessary.
-	Pack() error
-
-	// Unpack converts deserialized data back into item if necessary.
-	Unpack() error
 }
 
 // Wrappable provides the interface for objects that can be wrapped.
 //  TODO(mAdkins): is this necessary?
 type Wrappable interface {
-	//// Pack prepares the item for serialization if necessary.
-	//// Objects must pass this down to embedded wrappers.
-	//Pack() error
-	//
-	//// Unpack converts deserialized data back into item if necessary.
-	//// Objects must pass this down to embedded wrappers.
-	//Unpack() error
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -72,9 +59,6 @@ func (w *wrapper[T]) Pack() error { // Nothing to do here.
 	if w.typeName, err = reg.NameFor(w.item); err != nil {
 		return fmt.Errorf("get type name for %#v: %w", w.item, err)
 	}
-	//if err = w.item.Wrap(); err != nil {
-	//	return fmt.Errorf("pass Pack() to wrapped item: %w", err)
-	//}
 	return nil
 }
 
@@ -83,8 +67,5 @@ func (w *wrapper[T]) Unpack() error {
 	if check.IsZero(w.item) {
 		return check.ErrIsZero
 	}
-	//if err := w.item.Unwrap(); err != nil {
-	//	return fmt.Errorf("pass Unpack() to wrapped item: %w", err)
-	//}
 	return nil
 }

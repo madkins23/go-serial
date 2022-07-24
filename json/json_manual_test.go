@@ -1,6 +1,8 @@
-package yaml
+package json
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -8,57 +10,59 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/yaml.v3"
 
 	"github.com/madkins23/go-type/reg"
 
 	"github.com/madkins23/go-serial/test"
 )
 
-type YamlTestSuite struct {
+// The (original) "manual" mechanism for JSON.
+// The manual way requires more coding and extra structs during de/serialization.
+// On the other hand, the objects are directly accessible without constant dereferences.
+type JsonManualTestSuite struct {
 	suite.Suite
 	showAccount bool
 }
 
-func (suite *YamlTestSuite) SetupSuite() {
+func (suite *JsonManualTestSuite) SetupSuite() {
 	if showAccount, found := os.LookupEnv("GO-TYPE-SHOW-ACCOUNT"); found {
 		var err error
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
-	suite.Require().NoError(reg.AddAlias("test", test.Account{}), "creating test alias")
-	suite.Require().NoError(reg.Register(&test.Stock{}))
-	suite.Require().NoError(reg.Register(&test.Federal{}))
-	suite.Require().NoError(reg.Register(&test.State{}))
-	suite.Require().NoError(reg.AddAlias("yamlTest", Account{}), "creating test alias")
-	suite.Require().NoError(reg.Register(&Account{}))
-	suite.Require().NoError(reg.Register(&Bond{}))
+	suite.Require().NoError(test.Registration())
+	suite.Require().NoError(reg.AddAlias("jsonManualTest", ManualAccount{}),
+		"creating json manual test alias")
+	suite.Require().NoError(reg.Register(&ManualAccount{}))
+	suite.Require().NoError(reg.Register(&ManualBond{}))
 }
 
-func TestYamlSuite(t *testing.T) {
-	suite.Run(t, new(YamlTestSuite))
+func TestManualJsonSuite(t *testing.T) {
+	suite.Run(t, new(JsonManualTestSuite))
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 // TestMarshalCycle verifies the JSON Marshal/Unmarshal works as expected.
-func (suite *YamlTestSuite) TestMarshalCycle() {
-	account := MakeAccount()
+func (suite *JsonManualTestSuite) TestMarshalCycle() {
+	account := MakeManualAccount()
 
-	marshaled, err := yaml.Marshal(account)
+	marshaled, err := json.Marshal(account)
 	suite.Require().NoError(err)
 	if suite.showAccount {
-		fmt.Println(string(marshaled))
+		var buf bytes.Buffer
+		suite.Require().NoError(json.Indent(&buf, marshaled, "", "  "))
+		fmt.Println(buf.String())
 	}
-	suite.Assert().Contains(string(marshaled), "type:")
-	suite.Assert().Contains(string(marshaled), "data:")
+	suite.Assert().Contains(string(marshaled), "type\":")
+	suite.Assert().Contains(string(marshaled), "data\":")
 	suite.Assert().Contains(string(marshaled), "[test]Stock")
 	suite.Assert().Contains(string(marshaled), "[test]Federal")
 	suite.Assert().Contains(string(marshaled), "[test]State")
-	suite.Assert().Contains(string(marshaled), "[yamlTest]Bond")
+	suite.Assert().Contains(string(marshaled), "[jsonManualTest]ManualBond")
 
-	var newAccount Account
-	suite.Require().NoError(yaml.Unmarshal(marshaled, &newAccount))
+	var newAccount ManualAccount
+	suite.Require().NoError(json.Unmarshal(marshaled, &newAccount))
 	if suite.showAccount {
 		fmt.Println("---------------------------")
 		spew.Dump(newAccount)
@@ -78,33 +82,31 @@ func (suite *YamlTestSuite) TestMarshalCycle() {
 
 //////////////////////////////////////////////////////////////////////////
 
-type Account struct {
+type ManualAccount struct {
 	test.Account
 }
 
-func MakeAccount() *Account {
-	account := &Account{}
-	tBill := &Bond{}
+func MakeManualAccount() *ManualAccount {
+	account := &ManualAccount{}
+	tBill := &ManualBond{}
 	tBill.ConfigureTBill()
-	state := &Bond{}
+	state := &ManualBond{}
 	state.ConfigureStateBond()
 	account.MakeFake(test.MakeCostco(), test.MakeWalmart(), tBill, state)
 	return account
 }
 
-type xferAccount struct {
-	Account struct {
+type xferManualAccount struct {
+	AccountData test.AccountData
+	Account     struct {
 		Favorite  *Wrapper[test.Investment]
 		Positions []*Wrapper[test.Investment]
 		Lookup    map[string]*Wrapper[test.Investment]
 	}
-	test.AccountData
 }
 
-func (a *Account) MarshalYAML() (interface{}, error) {
-	xfer := &xferAccount{
-		AccountData: a.AccountData,
-	}
+func (a *ManualAccount) MarshalJSON() ([]byte, error) {
+	xfer := &xferManualAccount{AccountData: a.AccountData}
 
 	// Pack objects referenced by interface fields.
 	if a.Favorite != nil {
@@ -125,12 +127,12 @@ func (a *Account) MarshalYAML() (interface{}, error) {
 		xfer.Account.Lookup = fixed
 	}
 
-	return xfer, nil
+	return json.Marshal(xfer)
 }
 
-func (a *Account) UnmarshalYAML(node *yaml.Node) error {
-	xfer := &xferAccount{}
-	if err := node.Decode(&xfer); err != nil {
+func (a *ManualAccount) UnmarshalJSON(marshaled []byte) error {
+	xfer := &xferManualAccount{}
+	if err := json.Unmarshal(marshaled, xfer); err != nil {
 		return fmt.Errorf("unmarshal to transfer account: %w", err)
 	}
 
@@ -158,30 +160,30 @@ func (a *Account) UnmarshalYAML(node *yaml.Node) error {
 
 //////////////////////////////////////////////////////////////////////////
 
-type Bond struct {
+type ManualBond struct {
 	test.Bond
 }
 
-type xferBond struct {
+type xferManualBond struct {
 	Source   *Wrapper[test.Borrower]
 	BondData test.BondData
 }
 
-func (b *Bond) MarshalYAML() (interface{}, error) {
-	xfer := &xferBond{BondData: b.Data}
+func (b *ManualBond) MarshalJSON() ([]byte, error) {
+	xfer := &xferManualBond{BondData: b.Data}
 
 	// Pack objects referenced by interface fields.
 	if b.Source != nil {
 		xfer.Source = Wrap[test.Borrower](b.Source)
 	}
 
-	return xfer, nil
+	return json.Marshal(xfer)
 }
 
-func (b *Bond) UnmarshalYAML(node *yaml.Node) error {
-	xfer := &xferBond{}
-	if err := node.Decode(&xfer); err != nil {
-		return fmt.Errorf("unmarshal to transfer bond: %w", err)
+func (b *ManualBond) UnmarshalJSON(marshaled []byte) error {
+	xfer := &xferManualBond{}
+	if err := json.Unmarshal(marshaled, xfer); err != nil {
+		return fmt.Errorf("unmarshal to transfer account: %w", err)
 	}
 
 	b.Data = xfer.BondData

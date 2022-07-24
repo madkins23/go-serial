@@ -1,7 +1,10 @@
 package test
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/madkins23/go-type/reg"
 
 	"github.com/madkins23/go-serial/proxy"
 )
@@ -15,6 +18,29 @@ var _ proxy.Wrappable = &Stock{}
 var _ proxy.Wrappable = &Bond{}
 var _ proxy.Wrappable = &Federal{}
 var _ proxy.Wrappable = &State{}
+
+var registrationInitialized = false
+
+// Registration adds the 'test' alias and registers several structs.
+// Uses the github.com/madkins23/go-type library to register structs by name.
+func Registration() error {
+	if !registrationInitialized {
+		if err := reg.AddAlias("test", &Account{}); err != nil {
+			return fmt.Errorf("adding 'test' alias: %w", err)
+		}
+		if err := reg.Register(&Stock{}); err != nil {
+			return fmt.Errorf("registering Stock struct: %w", err)
+		}
+		if err := reg.Register(&Federal{}); err != nil {
+			return fmt.Errorf("registering Stock struct: %w", err)
+		}
+		if err := reg.Register(&State{}); err != nil {
+			return fmt.Errorf("registering Stock struct: %w", err)
+		}
+		registrationInitialized = true
+	}
+	return nil
+}
 
 //////////////////////////////////////////////////////////////////////////
 

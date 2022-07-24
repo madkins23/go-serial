@@ -1,0 +1,221 @@
+package json
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strconv"
+	"testing"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/madkins23/go-type/reg"
+
+	"github.com/madkins23/go-serial/test"
+)
+
+// The (newer) "proxy" mechanism for JSON.
+// The proxy way requires all code references to interface objects to dereference the proxy.
+// On the other hand there is no need to write custom un/marshaling code for every
+// struct that contains interface fields.
+type JsonProxyTestSuite struct {
+	suite.Suite
+	showAccount bool
+}
+
+func (suite *JsonProxyTestSuite) SetupSuite() {
+	if showAccount, found := os.LookupEnv("GO-TYPE-SHOW-ACCOUNT"); found {
+		var err error
+		suite.showAccount, err = strconv.ParseBool(showAccount)
+		suite.Require().NoError(err)
+	}
+	suite.Require().NoError(test.Registration())
+	suite.Require().NoError(reg.AddAlias("jsonProxyTest", ProxyAccount{}),
+		"creating json proxy test alias")
+	suite.Require().NoError(reg.Register(&ProxyAccount{}))
+	suite.Require().NoError(reg.Register(&ProxyBond{}))
+}
+
+func TestProxyJsonSuite(t *testing.T) {
+	suite.Run(t, new(JsonProxyTestSuite))
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+// TestMarshalCycle verifies the JSON Marshal/Unmarshal works as expected.
+func (suite *JsonProxyTestSuite) TestMarshalCycle() {
+	account := MakeProxyAccount()
+
+	marshaled, err := json.Marshal(account)
+	suite.Require().NoError(err)
+	if suite.showAccount {
+		var buf bytes.Buffer
+		suite.Require().NoError(json.Indent(&buf, marshaled, "", "  "))
+		fmt.Println(buf.String())
+	}
+	suite.Assert().Contains(string(marshaled), "type\":")
+	suite.Assert().Contains(string(marshaled), "data\":")
+	suite.Assert().Contains(string(marshaled), "[test]Stock")
+	suite.Assert().Contains(string(marshaled), "[test]Federal")
+	suite.Assert().Contains(string(marshaled), "[test]State")
+	suite.Assert().Contains(string(marshaled), "[jsonProxyTest]ProxyBond")
+
+	var newAccount ProxyAccount
+	suite.Require().NoError(json.Unmarshal(marshaled, &newAccount))
+	if suite.showAccount {
+		fmt.Println("---------------------------")
+		spew.Dump(newAccount)
+	}
+
+	suite.Assert().NotEqual(account, newAccount)
+	account.Favorite.Get().ClearPrivateFields()
+	for _, position := range account.Positions {
+		position.Get().ClearPrivateFields()
+	}
+	for _, position := range account.Lookup {
+		position.Get().ClearPrivateFields()
+	}
+	// Succeeds now that unexported (private) fields are gone.
+	suite.Assert().Equal(account, &newAccount)
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+type ProxyAccount struct {
+	// Can't embed test.Account since we're changing its fields.
+
+	test.AccountData
+	Favorite  *Wrapper[test.Investment]
+	Positions []*Wrapper[test.Investment]
+	Lookup    map[string]*Wrapper[test.Investment]
+}
+
+func (pa *ProxyAccount) MakeFake(investments ...test.Investment) {
+	acct := &test.Account{}
+	acct.MakeFake(investments...)
+	pa.AccountData = acct.AccountData
+	pa.Favorite = Wrap[test.Investment](acct.Favorite)
+}
+
+func MakeProxyAccount() *ProxyAccount {
+	account := &ProxyAccount{}
+	tBill := &ProxyBond{}
+	tBill.ConfigureTBill()
+	state := &ProxyBond{}
+	state.ConfigureStateBond()
+	account.MakeFake(test.MakeCostco(), test.MakeWalmart(), tBill, state)
+	return account
+}
+
+type xferProxyAccount struct {
+	AccountData test.AccountData
+	Account     struct {
+		Favorite  *Wrapper[test.Investment]
+		Positions []*Wrapper[test.Investment]
+		Lookup    map[string]*Wrapper[test.Investment]
+	}
+}
+
+func (a *ProxyAccount) MarshalJSON() ([]byte, error) {
+
+	return json.Marshal(xfer)
+}
+
+func (a *ProxyAccount) UnmarshalJSON(marshaled []byte) error {
+	xfer := &xferProxyAccount{}
+	if err := json.Unmarshal(marshaled, xfer); err != nil {
+		return fmt.Errorf("unmarshal to transfer account: %w", err)
+	}
+
+	a.AccountData = xfer.AccountData
+
+	if err := xfer.Account.Favorite.Unpack(); err != nil {
+		return fmt.Errorf("unpack favorite: %w", err)
+	} else {
+		a.Favorite = xfer.Account.Favorite.Get()
+	}
+
+	if xfer.Account.Positions != nil {
+		fixed := make([]test.Investment, len(xfer.Account.Positions))
+		for i, wPos := range xfer.Account.Positions {
+			if err := wPos.Unpack(); err != nil {
+				return fmt.Errorf("unpack position: %w", err)
+			} else {
+				fixed[i] = wPos.Get()
+			}
+		}
+		a.Positions = fixed
+	}
+
+	if xfer.Account.Lookup != nil {
+		fixed := make(map[string]test.Investment, len(xfer.Account.Lookup))
+		for key, wPos := range xfer.Account.Lookup {
+			if err := wPos.Unpack(); err != nil {
+				return fmt.Errorf("unpack position from lookup: %w", err)
+			} else {
+				fixed[key] = wPos.Get()
+			}
+		}
+		a.Lookup = fixed
+	}
+
+	return nil
+}
+
+func (a *ProxyAccount) getInvestment(w *wrapper[test.Investment]) (test.Investment, error) {
+	var ok bool
+	var investment test.Investment
+	if w != nil {
+		if err := w.Unpack(); err != nil {
+			return nil, fmt.Errorf("unwrap item: %w", err)
+		} else if investment, ok = w.Get().(test.Investment); !ok {
+			return nil, fmt.Errorf("item %#v not Investment", w.Get())
+		}
+	}
+
+	return investment, nil
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+type ProxyBond struct {
+	test.Bond
+}
+
+type xferProxyBond struct {
+	Source   *wrapper[test.Borrower]
+	BondData test.BondData
+}
+
+func (b *ProxyBond) MarshalJSON() ([]byte, error) {
+	xfer := &xferProxyBond{BondData: b.Data}
+
+	// Pack objects referenced by interface fields.
+	if b.Source != nil {
+		xfer.Source = Wrap[test.Borrower](b.Source)
+		if err := xfer.Source.Pack(); err != nil {
+			return nil, fmt.Errorf("pack borrower: %w", err)
+		}
+	}
+
+	return json.Marshal(xfer)
+}
+
+func (b *ProxyBond) UnmarshalJSON(marshaled []byte) error {
+	xfer := &xferProxyBond{}
+	if err := json.Unmarshal(marshaled, xfer); err != nil {
+		return fmt.Errorf("unmarshal to transfer account: %w", err)
+	}
+
+	b.Data = xfer.BondData
+
+	if err := xfer.Source.Unpack(); err != nil {
+		return fmt.Errorf("unpack borrower: %w", err)
+	} else {
+		b.Source = xfer.Source.Get()
+	}
+
+	return nil
+}
