@@ -15,35 +15,35 @@ import (
 	"github.com/madkins23/go-serial/test"
 )
 
-type YamlTestSuite struct {
+// The (original) "manual" mechanism for YAML.
+// The manual way requires more coding and extra structs during de/serialization.
+// On the other hand, the objects are directly accessible without constant dereferences.
+type YamlManualTestSuite struct {
 	suite.Suite
 	showAccount bool
 }
 
-func (suite *YamlTestSuite) SetupSuite() {
+func (suite *YamlManualTestSuite) SetupSuite() {
 	if showAccount, found := os.LookupEnv("GO-TYPE-SHOW-ACCOUNT"); found {
 		var err error
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
-	suite.Require().NoError(reg.AddAlias("test", test.Account{}), "creating test alias")
-	suite.Require().NoError(reg.Register(&test.Stock{}))
-	suite.Require().NoError(reg.Register(&test.Federal{}))
-	suite.Require().NoError(reg.Register(&test.State{}))
-	suite.Require().NoError(reg.AddAlias("yamlTest", Account{}), "creating test alias")
-	suite.Require().NoError(reg.Register(&Account{}))
-	suite.Require().NoError(reg.Register(&Bond{}))
+	suite.Require().NoError(test.Registration())
+	suite.Require().NoError(reg.AddAlias("yamlManualTest", ManualAccount{}), "creating test alias")
+	suite.Require().NoError(reg.Register(&ManualAccount{}))
+	suite.Require().NoError(reg.Register(&ManualBond{}))
 }
 
-func TestYamlSuite(t *testing.T) {
-	suite.Run(t, new(YamlTestSuite))
+func TestManualYamlSuite(t *testing.T) {
+	suite.Run(t, new(YamlManualTestSuite))
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 // TestMarshalCycle verifies the JSON Marshal/Unmarshal works as expected.
-func (suite *YamlTestSuite) TestMarshalCycle() {
-	account := MakeAccount()
+func (suite *YamlManualTestSuite) TestMarshalCycle() {
+	account := MakeManualAccount()
 
 	marshaled, err := yaml.Marshal(account)
 	suite.Require().NoError(err)
@@ -55,9 +55,9 @@ func (suite *YamlTestSuite) TestMarshalCycle() {
 	suite.Assert().Contains(string(marshaled), "[test]Stock")
 	suite.Assert().Contains(string(marshaled), "[test]Federal")
 	suite.Assert().Contains(string(marshaled), "[test]State")
-	suite.Assert().Contains(string(marshaled), "[yamlTest]Bond")
+	suite.Assert().Contains(string(marshaled), "[yamlManualTest]ManualBond")
 
-	var newAccount Account
+	var newAccount ManualAccount
 	suite.Require().NoError(yaml.Unmarshal(marshaled, &newAccount))
 	if suite.showAccount {
 		fmt.Println("---------------------------")
@@ -78,21 +78,21 @@ func (suite *YamlTestSuite) TestMarshalCycle() {
 
 //////////////////////////////////////////////////////////////////////////
 
-type Account struct {
+type ManualAccount struct {
 	test.Account
 }
 
-func MakeAccount() *Account {
-	account := &Account{}
-	tBill := &Bond{}
+func MakeManualAccount() *ManualAccount {
+	account := &ManualAccount{}
+	tBill := &ManualBond{}
 	tBill.ConfigureTBill()
-	state := &Bond{}
+	state := &ManualBond{}
 	state.ConfigureStateBond()
 	account.MakeFake(test.MakeCostco(), test.MakeWalmart(), tBill, state)
 	return account
 }
 
-type xferAccount struct {
+type xferManualAccount struct {
 	Account struct {
 		Favorite  *Wrapper[test.Investment]
 		Positions []*Wrapper[test.Investment]
@@ -101,8 +101,8 @@ type xferAccount struct {
 	test.AccountData
 }
 
-func (a *Account) MarshalYAML() (interface{}, error) {
-	xfer := &xferAccount{
+func (a *ManualAccount) MarshalYAML() (interface{}, error) {
+	xfer := &xferManualAccount{
 		AccountData: a.AccountData,
 	}
 
@@ -128,8 +128,8 @@ func (a *Account) MarshalYAML() (interface{}, error) {
 	return xfer, nil
 }
 
-func (a *Account) UnmarshalYAML(node *yaml.Node) error {
-	xfer := &xferAccount{}
+func (a *ManualAccount) UnmarshalYAML(node *yaml.Node) error {
+	xfer := &xferManualAccount{}
 	if err := node.Decode(&xfer); err != nil {
 		return fmt.Errorf("unmarshal to transfer account: %w", err)
 	}
@@ -158,17 +158,17 @@ func (a *Account) UnmarshalYAML(node *yaml.Node) error {
 
 //////////////////////////////////////////////////////////////////////////
 
-type Bond struct {
+type ManualBond struct {
 	test.Bond
 }
 
-type xferBond struct {
+type xferManualBond struct {
 	Source   *Wrapper[test.Borrower]
 	BondData test.BondData
 }
 
-func (b *Bond) MarshalYAML() (interface{}, error) {
-	xfer := &xferBond{BondData: b.Data}
+func (b *ManualBond) MarshalYAML() (interface{}, error) {
+	xfer := &xferManualBond{BondData: b.Data}
 
 	// Pack objects referenced by interface fields.
 	if b.Source != nil {
@@ -178,8 +178,8 @@ func (b *Bond) MarshalYAML() (interface{}, error) {
 	return xfer, nil
 }
 
-func (b *Bond) UnmarshalYAML(node *yaml.Node) error {
-	xfer := &xferBond{}
+func (b *ManualBond) UnmarshalYAML(node *yaml.Node) error {
+	xfer := &xferManualBond{}
 	if err := node.Decode(&xfer); err != nil {
 		return fmt.Errorf("unmarshal to transfer bond: %w", err)
 	}

@@ -57,7 +57,7 @@ type AccountData struct {
 	Veteran bool
 }
 
-//////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------
 
 // MakeFake creates and initializes a fake account using the specified investements.
 // The first investment is assumed to be the favorite.

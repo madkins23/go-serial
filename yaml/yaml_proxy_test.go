@@ -1,8 +1,6 @@
-package json
+package yaml
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -10,60 +8,58 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/yaml.v3"
 
 	"github.com/madkins23/go-type/reg"
 
 	"github.com/madkins23/go-serial/test"
 )
 
-// The (newer) "proxy" mechanism for JSON.
+// The (newer) "proxy" mechanism for YAML.
 // The proxy way requires all code references to interface objects to dereference the proxy.
 // On the other hand there is no need to write custom un/marshaling code for every
 // struct that contains interface fields.
-type JsonProxyTestSuite struct {
+type YamlProxyTestSuite struct {
 	suite.Suite
 	showAccount bool
 }
 
-func (suite *JsonProxyTestSuite) SetupSuite() {
+func (suite *YamlProxyTestSuite) SetupSuite() {
 	if showAccount, found := os.LookupEnv("GO-TYPE-SHOW-ACCOUNT"); found {
 		var err error
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
 	suite.Require().NoError(test.Registration())
-	suite.Require().NoError(reg.AddAlias("jsonProxyTest", ProxyAccount{}),
-		"creating json proxy test alias")
+	suite.Require().NoError(reg.AddAlias("yamlProxyTest", ProxyAccount{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&ProxyAccount{}))
 	suite.Require().NoError(reg.Register(&ProxyBond{}))
 }
 
-func TestProxyJsonSuite(t *testing.T) {
-	suite.Run(t, new(JsonProxyTestSuite))
+func TestProxyYamlSuite(t *testing.T) {
+	suite.Run(t, new(YamlProxyTestSuite))
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 // TestMarshalCycle verifies the JSON Marshal/Unmarshal works as expected.
-func (suite *JsonProxyTestSuite) TestMarshalCycle() {
+func (suite *YamlProxyTestSuite) TestMarshalCycle() {
 	account := MakeProxyAccount()
 
-	marshaled, err := json.Marshal(account)
+	marshaled, err := yaml.Marshal(account)
 	suite.Require().NoError(err)
 	if suite.showAccount {
-		var buf bytes.Buffer
-		suite.Require().NoError(json.Indent(&buf, marshaled, "", "  "))
-		fmt.Println(buf.String())
+		fmt.Println(string(marshaled))
 	}
-	suite.Assert().Contains(string(marshaled), "type\":")
-	suite.Assert().Contains(string(marshaled), "data\":")
+	suite.Assert().Contains(string(marshaled), "type:")
+	suite.Assert().Contains(string(marshaled), "data:")
 	suite.Assert().Contains(string(marshaled), "[test]Stock")
 	suite.Assert().Contains(string(marshaled), "[test]Federal")
 	suite.Assert().Contains(string(marshaled), "[test]State")
-	suite.Assert().Contains(string(marshaled), "[jsonProxyTest]ProxyBond")
+	suite.Assert().Contains(string(marshaled), "[yamlProxyTest]ProxyBond")
 
 	var newAccount ProxyAccount
-	suite.Require().NoError(json.Unmarshal(marshaled, &newAccount))
+	suite.Require().NoError(yaml.Unmarshal(marshaled, &newAccount))
 	if suite.showAccount {
 		fmt.Println("---------------------------")
 		spew.Dump(newAccount)
