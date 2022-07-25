@@ -30,6 +30,7 @@ func (suite *YamlProxyTestSuite) SetupSuite() {
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
+	reg.Highlander().Clear()
 	suite.Require().NoError(test.Registration())
 	suite.Require().NoError(reg.AddAlias("yamlProxyTest", ProxyAccount{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&ProxyAccount{}))

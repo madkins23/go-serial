@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
-github.com/madkins23/go-type v0.0.4 h1:HFUHEiPa/2Gg1enkwGO2VuasCT9oMs2fKMmiOZMEtho=
-github.com/madkins23/go-type v0.0.4/go.mod h1:i1JXpgX7gytlNE5IxuEqm2pwdtzx+NmhoeRnQ9Dxul8=
+github.com/madkins23/go-type v0.2.0 h1:EO5AdmU6YPxolB52FGyF3804vs95266jrbF7e7Pfe30=
+github.com/madkins23/go-type v0.2.0/go.mod h1:fbidI+TH9VtapsSUMObIftuJANORy/Tyi8i7ZCEtt1s=
 github.com/madkins23/go-utils v1.24.0 h1:xFdrC0uVyAMZBlEOtwySjpDo5mFnAI7d1ELE4uA5F3Q=
 github.com/madkins23/go-utils v1.24.0/go.mod h1:qXt35t0ynx60YAySTcuAoi4dIzROKU5VsBWiuLQBG3Y=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=

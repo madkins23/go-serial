@@ -31,6 +31,7 @@ func (suite *JsonProxyTestSuite) SetupSuite() {
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
+	reg.Highlander().Clear()
 	suite.Require().NoError(test.Registration())
 	suite.Require().NoError(reg.AddAlias("jsonProxyTest", ProxyAccount{}),
 		"creating json proxy test alias")

@@ -29,6 +29,7 @@ func (suite *YamlManualTestSuite) SetupSuite() {
 		suite.showAccount, err = strconv.ParseBool(showAccount)
 		suite.Require().NoError(err)
 	}
+	reg.Highlander().Clear()
 	suite.Require().NoError(test.Registration())
 	suite.Require().NoError(reg.AddAlias("yamlManualTest", ManualAccount{}), "creating test alias")
 	suite.Require().NoError(reg.Register(&ManualAccount{}))
