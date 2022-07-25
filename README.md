@@ -28,7 +28,7 @@ Generally it involves:
 
 There are various examples of this available online.
 Normally there is a `switch` statement with type names
-for all of the types that may be serialized.
+for all the types that may be serialized.
 This may represent a code maintenance issue.
 
 ### Technical Challenges
