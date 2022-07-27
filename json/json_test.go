@@ -28,11 +28,10 @@ func (suite *JsonTestSuite) SetupSuite() {
 		suite.Require().NoError(err)
 	}
 	reg.Highlander().Clear()
+	suite.Require().NoError(reg.AddAlias("json", Bond{}), "creating json test alias")
 	suite.Require().NoError(test.Register())
-	//suite.Require().NoError(reg.AddAlias("jsonManualTest", ManualAccount{}),
-	//	"creating json manual test alias")
-	//suite.Require().NoError(reg.Register(&ManualAccount{}))
-	//suite.Require().NoError(reg.Register(&ManualBond{}))
+	suite.Require().NoError(reg.Register(Bond{}))
+	suite.Require().NoError(reg.Register(WrappedBond{}))
 }
 
 func TestJsonSuite(t *testing.T) {
@@ -42,50 +41,30 @@ func TestJsonSuite(t *testing.T) {
 //////////////////////////////////////////////////////////////////////////
 
 func (suite *JsonTestSuite) TestWrapper() {
-	cat := test.NewCat(test.CatName)
-	suite.Require().NotNil(cat)
-	suite.Assert().Equal(test.CatName, cat.Name())
-	suite.Assert().Equal(test.CatMoves, cat.Moves())
-	suite.Assert().Equal(test.CatSound, cat.Sound())
-	wrapCat := Wrap(cat)
-	suite.Require().NotNil(wrapCat)
-	suite.Assert().Equal(test.CatName, wrapCat.Get().Name())
-	suite.Assert().Equal(test.CatMoves, wrapCat.Get().Moves())
-	suite.Assert().Equal(test.CatSound, wrapCat.Get().Sound())
+	stock := test.MakeCostco()
+	suite.Require().NotNil(stock)
+	suite.Assert().Equal(test.StockCostcoName, stock.Named)
+	suite.Assert().Equal(test.StockCostcoSymbol, stock.Symbol)
+	suite.Assert().Equal(test.StockCostcoShares, stock.Shares)
+	suite.Assert().Equal(test.StockCostcoPrice, stock.Price)
+	wrapped := Wrap(stock)
+	suite.Require().NotNil(wrapped)
+	suite.Assert().Equal(test.StockCostcoName, wrapped.Get().Named)
+	suite.Assert().Equal(test.StockCostcoSymbol, wrapped.Get().Symbol)
+	suite.Assert().Equal(test.StockCostcoShares, wrapped.Get().Shares)
+	suite.Assert().Equal(test.StockCostcoPrice, wrapped.Get().Price)
+	clearPacked := ClearPackedAfterMarshal
 	ClearPackedAfterMarshal = false
-	defer func() { ClearPackedAfterMarshal = true }()
-	marshaledBytes, err := wrapCat.MarshalJSON()
+	defer func() { ClearPackedAfterMarshal = clearPacked }()
+	marshaledBytes, err := wrapped.MarshalJSON()
 	suite.Require().NoError(err)
 	marshaled := string(marshaledBytes)
 	suite.Assert().Contains(marshaled, "type\":")
 	suite.Assert().Contains(marshaled, "data\":")
-	suite.Assert().Contains(marshaled, "[test]Cat")
-	suite.Assert().Equal("[test]Cat", wrapCat.Packed.TypeName)
-	suite.Assert().Contains(string(wrapCat.Packed.RawForm), test.CatName)
-}
-
-//------------------------------------------------------------------------
-
-// TestWrapped tests the expected usage of json.Wrap() and json.Wrapper.
-// In this case all references to interface values are wrapped.
-func (suite *JsonTestSuite) TestWrapped() {
-	MarshalCycle(suite, MakeWrappedZoo(),
-		func(suite *JsonTestSuite, marshaled string) {
-			suite.Assert().Contains(marshaled, "type\":")
-			suite.Assert().Contains(marshaled, "data\":")
-			suite.Assert().Contains(marshaled, "[test]Bird")
-			suite.Assert().Contains(marshaled, "[test]Cat")
-			suite.Assert().Contains(marshaled, "[test]Dog")
-		},
-		func(suite *JsonTestSuite, zoo *WrappedZoo) {
-			// In the "wrapped" case the zoo fields must be dereferenced from their wrappers.
-			suite.Assert().Equal(test.BirdName, zoo.Favorite.Get().Name())
-			suite.Assert().Equal(test.BirdMoves, zoo.Favorite.Get().Moves())
-			suite.Assert().Equal(test.BirdSound, zoo.Favorite.Get().Sound())
-			suite.Assert().Equal(test.BirdSound, zoo.Named[test.BirdName].Get().Sound())
-			suite.Assert().Equal(test.CatSound, zoo.Named[test.CatName].Get().Sound())
-			suite.Assert().Equal(test.DogSound, zoo.Named[test.DogName].Get().Sound())
-		})
+	suite.Assert().Contains(marshaled, "[test]Stock")
+	suite.Assert().Equal("[test]Stock", wrapped.Packed.TypeName)
+	suite.Assert().Contains(string(wrapped.Packed.RawForm), test.StockCostcoName)
+	suite.Assert().Contains(string(wrapped.Packed.RawForm), test.StockCostcoSymbol)
 }
 
 //------------------------------------------------------------------------
@@ -94,27 +73,48 @@ func (suite *JsonTestSuite) TestWrapped() {
 // In this case the Zoo fields do not need to be dereferenced.
 // See the Zoo MarshalJSON() and UnmarshalJSON() below.
 func (suite *JsonTestSuite) TestNormal() {
-	MarshalCycle(suite, MakeZoo(),
+	MarshalCycle[Portfolio](suite, MakePortfolio(),
 		func(suite *JsonTestSuite, marshaled string) {
 			suite.Assert().Contains(marshaled, "type\":")
 			suite.Assert().Contains(marshaled, "data\":")
-			suite.Assert().Contains(marshaled, "[test]Bird")
-			suite.Assert().Contains(marshaled, "[test]Cat")
-			suite.Assert().Contains(marshaled, "[test]Dog")
+			suite.Assert().Contains(marshaled, "[test]Stock")
+			suite.Assert().Contains(marshaled, "[test]Federal")
+			suite.Assert().Contains(marshaled, "[test]State")
 		},
-		func(suite *JsonTestSuite, zoo *Zoo) {
-			// In the "normal" case the Zoo fields are referenced directly.
-			suite.Assert().Equal(test.BirdName, zoo.Favorite.Name())
-			suite.Assert().Equal(test.BirdMoves, zoo.Favorite.Moves())
-			suite.Assert().Equal(test.BirdSound, zoo.Favorite.Sound())
-			suite.Assert().Equal(test.BirdSound, zoo.Named[test.BirdName].Sound())
-			suite.Assert().Equal(test.CatSound, zoo.Named[test.CatName].Sound())
-			suite.Assert().Equal(test.DogSound, zoo.Named[test.DogName].Sound())
+		func(suite *JsonTestSuite, portfolio *Portfolio) {
+			// In the "normal" case the portfolio fields are referenced directly.
+			suite.Assert().Equal(test.StockCostcoName, portfolio.Favorite.Name())
+			suite.Assert().Equal(test.StockCostcoShares*test.StockCostcoPrice, portfolio.Favorite.Value())
+			suite.Assert().Equal(test.StockWalmartName, portfolio.Lookup[test.StockWalmartSymbol].Name())
+			suite.Assert().Equal(test.StockWalmartShares*test.StockWalmartPrice, portfolio.Lookup[test.StockWalmartSymbol].Value())
+		})
+}
+
+//------------------------------------------------------------------------
+
+// TestWrapped tests the expected usage of json.Wrap() and json.Wrapper.
+// In this case all references to interface values are wrapped.
+func (suite *JsonTestSuite) TestWrapped() {
+	MarshalCycle[WrappedPortfolio](suite, MakeWrappedPortfolio(),
+		func(suite *JsonTestSuite, marshaled string) {
+			suite.Assert().Contains(marshaled, "type\":")
+			suite.Assert().Contains(marshaled, "data\":")
+			suite.Assert().Contains(marshaled, "[test]Stock")
+			suite.Assert().Contains(marshaled, "[test]Federal")
+			suite.Assert().Contains(marshaled, "[test]State")
+		},
+		func(suite *JsonTestSuite, portfolio *WrappedPortfolio) {
+			// In the "wrapped" case the zoo fields must be dereferenced from their wrappers.
+			suite.Assert().Equal(test.StockCostcoName, portfolio.Favorite.Get().Name())
+			suite.Assert().Equal(test.StockCostcoShares*test.StockCostcoPrice, portfolio.Favorite.Get().Value())
+			suite.Assert().Equal(test.StockWalmartName, portfolio.Lookup[test.StockWalmartSymbol].Get().Name())
+			suite.Assert().Equal(test.StockWalmartShares*test.StockWalmartPrice, portfolio.Lookup[test.StockWalmartSymbol].Get().Value())
 		})
 }
 
 //////////////////////////////////////////////////////////////////////////
 
+// MarshalCycle has common code for testing a marshal/unmarshal cycle.
 func MarshalCycle[T any](suite *JsonTestSuite, data *T,
 	marshaledTests func(suite *JsonTestSuite, marshaled string),
 	unmarshaledTests func(suite *JsonTestSuite, unmarshaled *T)) {
@@ -145,83 +145,184 @@ func MarshalCycle[T any](suite *JsonTestSuite, data *T,
 
 //////////////////////////////////////////////////////////////////////////
 
-type Zoo struct {
-	Favorite test.Animal
-	Animals  []test.Animal
-	Named    map[string]test.Animal
+type Portfolio struct {
+	Favorite  test.Investment
+	Positions []test.Investment
+	Lookup    map[string]test.Investment
 }
 
-func MakeZoo() *Zoo {
-	animals := test.Animals()
-	zoo := &Zoo{
-		Favorite: animals[0],
-		Animals:  animals,
-		Named:    make(map[string]test.Animal, len(animals)),
-	}
-	for _, animal := range animals {
-		zoo.Named[animal.Name()] = animal
-	}
-	return zoo
+//------------------------------------------------------------------------
+
+func MakePortfolio() *Portfolio {
+	return MakePortfolioWith(
+		test.MakeCostco(), test.MakeWalmart(),
+		MakeStateBond(), MakeTBill())
 }
 
-// MarshalJSON is required in the "normal" case to generate a WrappedZoo which is then marshaled.
-func (z *Zoo) MarshalJSON() ([]byte, error) {
-	w := &WrappedZoo{
-		Animals: make([]*Wrapper[test.Animal], len(z.Animals)),
-		Named:   make(map[string]*Wrapper[test.Animal], len(z.Animals)),
+func MakePortfolioWith(investments ...test.Investment) *Portfolio {
+	portfolio := &Portfolio{
+		Positions: make([]test.Investment, len(investments)),
+		Lookup:    make(map[string]test.Investment),
 	}
-	for i, animal := range z.Animals {
-		w.Animals[i] = Wrap[test.Animal](animal)
-		w.Named[animal.Name()] = w.Animals[i]
+	for i, investment := range investments {
+		portfolio.Positions[i] = investment
+		switch it := investment.(type) {
+		case *test.Stock:
+			portfolio.Lookup[it.Symbol] = investment
+		}
 		if i == 0 {
-			w.Favorite = w.Animals[i]
+			portfolio.Favorite = investment
+		}
+	}
+	return portfolio
+}
+
+//------------------------------------------------------------------------
+
+// MarshalJSON is required in the "normal" case to generate a WrappedPortfolio which is then marshaled.
+func (p *Portfolio) MarshalJSON() ([]byte, error) {
+	w := &WrappedPortfolio{
+		Positions: make([]*Wrapper[test.Investment], len(p.Positions)),
+		Lookup:    make(map[string]*Wrapper[test.Investment], len(p.Positions)),
+	}
+	for i, position := range p.Positions {
+		w.Positions[i] = Wrap[test.Investment](position)
+		if key := position.Key(); key != "" {
+			w.Lookup[key] = w.Positions[i]
+		}
+		if i == 0 {
+			w.Favorite = w.Positions[i]
 		}
 	}
 	return json.Marshal(w)
 }
 
-// UnmarshalJSON is required in the "normal" case to convert the WrappedZoo into a Zoo.
-func (z *Zoo) UnmarshalJSON(marshaled []byte) error {
-	w := new(WrappedZoo)
+// UnmarshalJSON is required in the "normal" case to convert the WrappedPortfolio into a Portfolio.
+func (p *Portfolio) UnmarshalJSON(marshaled []byte) error {
+	w := new(WrappedPortfolio)
 	if err := json.Unmarshal(marshaled, w); err != nil {
-		return fmt.Errorf("unmarshal packed area: %w", err)
+		return err
 	}
-	z.Named = make(map[string]test.Animal, len(w.Named))
-	for k, animal := range w.Named {
-		z.Named[k] = animal.Get()
+	p.Lookup = make(map[string]test.Investment, len(w.Lookup))
+	for k, position := range w.Lookup {
+		p.Lookup[k] = position.Get()
 	}
-	z.Animals = make([]test.Animal, len(w.Animals))
-	for i, animal := range w.Animals {
-		if a, found := z.Named[animal.Get().Name()]; found {
-			z.Animals[i] = a
-		} else {
-			z.Animals[i] = animal.Get()
+	p.Positions = make([]test.Investment, len(w.Positions))
+	for i, position := range w.Positions {
+		key := position.Get().Key()
+		if key != "" {
+			if pos, found := p.Lookup[key]; found {
+				p.Positions[i] = pos
+				continue
+			}
+		}
+		p.Positions[i] = position.Get()
+	}
+	p.Favorite = p.Positions[0]
+	return nil
+}
+
+//========================================================================
+
+type WrappedPortfolio struct {
+	Favorite  *Wrapper[test.Investment]
+	Positions []*Wrapper[test.Investment]
+	Lookup    map[string]*Wrapper[test.Investment]
+}
+
+func MakeWrappedPortfolio() *WrappedPortfolio {
+	return MakeWrappedPortfolioWith(
+		test.MakeCostco(), test.MakeWalmart(),
+		MakeWrappedStateBond(), MakeWrappedTBill())
+}
+
+func MakeWrappedPortfolioWith(investments ...test.Investment) *WrappedPortfolio {
+	p := &WrappedPortfolio{
+		Positions: make([]*Wrapper[test.Investment], len(investments)),
+		Lookup:    make(map[string]*Wrapper[test.Investment]),
+	}
+	for i, investment := range investments {
+		wrapped := Wrap[test.Investment](investment)
+		p.Positions[i] = wrapped
+		if stock, ok := wrapped.Get().(*test.Stock); ok {
+			p.Lookup[stock.Symbol] = wrapped
+		}
+		if i == 0 {
+			p.Favorite = wrapped
 		}
 	}
-	z.Favorite = z.Animals[0]
-	return nil
+	return p
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Bonds contain an interface type Borrower which tests nested interface objects.
+
+var _ test.Investment = &Bond{}
+
+type Bond struct {
+	test.BondData
+	Source test.Borrower
+}
+
+func MakeStateBond() *Bond {
+	return &Bond{
+		BondData: test.StateBondData(),
+		Source:   test.StateBondSource(),
+	}
+}
+
+func MakeTBill() *Bond {
+	return &Bond{
+		BondData: test.TBillData(),
+		Source:   test.TBillSource(),
+	}
 }
 
 //------------------------------------------------------------------------
 
-type WrappedZoo struct {
-	Favorite *Wrapper[test.Animal]
-	Animals  []*Wrapper[test.Animal]
-	Named    map[string]*Wrapper[test.Animal]
+// MarshalJSON is required in the "normal" case to generate a WrappedBond which is then marshaled.
+func (b *Bond) MarshalJSON() ([]byte, error) {
+	w := &WrappedBond{
+		BondData: b.BondData,
+		Source:   Wrap[test.Borrower](b.Source),
+	}
+	return json.Marshal(w)
 }
 
-func MakeWrappedZoo() *WrappedZoo {
-	testAnimals := test.Animals()
-	zoo := &WrappedZoo{
-		Animals: make([]*Wrapper[test.Animal], len(testAnimals)),
-		Named:   make(map[string]*Wrapper[test.Animal]),
+// UnmarshalJSON is required in the "normal" case to convert the WrappedBond into a Bond.
+func (b *Bond) UnmarshalJSON(marshaled []byte) error {
+	w := new(WrappedBond)
+	if err := json.Unmarshal(marshaled, w); err != nil {
+		return err
 	}
-	for i, animal := range testAnimals {
-		zoo.Animals[i] = Wrap[test.Animal](animal)
-		zoo.Named[zoo.Animals[i].Get().Name()] = zoo.Animals[i]
-		if i == 0 {
-			zoo.Favorite = zoo.Animals[i]
-		}
+	b.BondData = w.BondData
+	b.Source = w.Source.Get()
+	return nil
+}
+
+//========================================================================
+
+var _ test.Investment = &WrappedBond{}
+
+type WrappedBond struct {
+	test.BondData
+	Source *Wrapper[test.Borrower]
+}
+
+func (b *WrappedBond) Value() float32 {
+	return float32(b.BondData.Units) * b.BondData.Price
+}
+
+func MakeWrappedStateBond() *WrappedBond {
+	return &WrappedBond{
+		BondData: test.StateBondData(),
+		Source:   Wrap[test.Borrower](test.StateBondSource()),
 	}
-	return zoo
+}
+
+func MakeWrappedTBill() *WrappedBond {
+	return &WrappedBond{
+		BondData: test.TBillData(),
+		Source:   Wrap[test.Borrower](test.TBillSource()),
+	}
 }
