@@ -9,6 +9,9 @@ import (
 	"github.com/madkins23/go-type/reg"
 )
 
+// ClearPackedAfterUnmarshal controls removal of the packed data after unmarshaling.
+var ClearPackedAfterUnmarshal = true
+
 // Wrap a Wrappable item in a wrapper that can handle serialization.
 // Creates a proxy.Wrapper object but doesn't Wrap() it for serialization.
 func Wrap[W any](item W) *Wrapper[W] {
@@ -17,13 +20,15 @@ func Wrap[W any](item W) *Wrapper[W] {
 	return w
 }
 
+type Packed struct {
+	TypeName string `yaml:"type"`
+	RawForm  string `yaml:"data"`
+}
+
 // Wrapper is used to attach a type name to an item to be serialized.
 // This supports re-creating the correct type for filling an interface field.
 type Wrapper[T any] struct {
-	Packed struct {
-		TypeName string `yaml:"type"`
-		RawForm  string `yaml:"data"`
-	}
+	Packed
 	item T
 }
 
@@ -49,7 +54,6 @@ func (w *Wrapper[T]) MarshalYAML() (interface{}, error) {
 		return nil, fmt.Errorf("marshal packed area: %w", err)
 	}
 	w.Packed.RawForm = build.String()
-
 	return &w.Packed, nil
 }
 
@@ -69,6 +73,11 @@ func (w *Wrapper[T]) UnmarshalYAML(node *yaml.Node) error {
 		// TODO: How to get name of T?
 		return fmt.Errorf("type %s not generic type", w.Packed.TypeName)
 	} else {
+		if ClearPackedAfterUnmarshal {
+			// Remove packed data to save memory.
+			w.Packed.TypeName = ""
+			w.Packed.RawForm = ""
+		}
 		return nil
 	}
 }

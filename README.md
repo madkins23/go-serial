@@ -3,16 +3,16 @@
 ## Problem Description
 
 Go makes it hard to deserialize an object with fields that are interfaces.
-This includes map and array values as well as structs.
 
 Serialization of an interface is pretty simple.
-The object that fills the interface has a type to guide the process.
+The object that fills the interface at the time of serialization
+has a type to guide the process.
 
 Deserialization of generalized Go interfaces is problematic.
 Unmarshaling a given type is generally done using reflection,
 since the type is present and can be used to guide the process.
 An interface may be filled with instances of any type that implements the interface,
-so the decoder can't know what type to generate to fill the interface.
+so the decoder can't know what type to generate to instantiate the interface.
 
 ### Manual Solution
 
@@ -39,14 +39,20 @@ Some obstacles to generalizing serialization of objects that have interface fiel
 
 Existing serializing code doesn't recognize the need to represent
 interface values as being of specific types.
-There is no extra information of this type in JSON or YAML.
-
+There is no extra information of this type in JSON or YAML output.
 It is possible to override the marshaling code for types
 that implement specific interfaces that need to be serialized.
+
 Naive implementations of `MarshalXXXX()` to wrap such output  with
 an extra level structure to provide the type name may result in stack overflow.
 This will be true if the object is wrapped and then the wrapper serialized,
 which will then invoke the `MarshalXXXX()` method again within the wrapper.
+The workaround for this is to copy the object's field into a struct defined
+purely for the purpose and then to serialize _that_ object.
+
+Note that this will require a lot of custom serialization code.
+It will also require a lot of custom _de_-serialization code
+in order to read the type name and then handle the appropriate type.
 
 #### No Index of Type Names
 
@@ -57,7 +63,7 @@ The type names are (or at least the index to them is) removed at compile time.
 This is where online solutions generally use a `switch` statement over the type name.
 When adding a new type implementing the interface it is necessary
 to add a new `case` to the `switch` statement.
-This may be seen as a maintenance issue as the new type will
+This may be seen as a maintenance issue as the new type declaration will
 not necessarily be anywhere near the `switch` statement and
 the developer must know about and maintain this 'magic' connection.
 
@@ -73,45 +79,117 @@ This method must handle the unmarshaling of the interface field.
 
 ## The `go-serial` Solution
 
-### Wrap Interface Values During Serialization
+### Provide a Generic Wrapper Object
 
-Override the appropriate `MarshalXXXX()` method for any type
-containing an interface field.
-Generate 'wrapper' map around each object that fills an interface
-with a type name field and a contents field for the original object.
+For a given serialization type (e.g. JSON or YAML) generate a wrapper
+type to hold the object and an envelope containing the type name and
+the marshaled data for the object.
 
-Support for wrappers is provided by this project.
-Usage is demonstrated in test files.
+```
+Wrapper
++-----------------------------------+
+| Item to be wrapped                |
++-----------------------------------+
+| Envelope                          |
+| +-------------------------------+ |
+| | Type Name                     | |
+| +-------------------------------+ |
+| | Raw (marshaled) Data for Item | |
+| +-------------------------------+ |
++-----------------------------------+
+```
+
+Utilize Go generics to specify the interface type to be wrapped.
+This may not be absolutely necessary but it seems to simplify
+references to the wrapped items which don't have to be
+defined as `{}interface` and type converted after deserialization.
+
+#### Serialization
+
+Construct the custom serialization code for the wrapper object.
+During marshaling of the wrapper object:
+
+1. acquire the type name of the contained object for the envelope,
+2. marshal the object into a "raw" field in the envelope, and
+3. pass the envelope to the serialization package for marshaling.
+
+#### Deserialization
+
+Construct the custom deserialization code from the wrapper object.
+During unmarshaling of the wrapper object:
+
+1. unmarshal into the wrapper envelope,
+2. instantiate the actual object from the type name in the envelope, and
+3. use the serialization package to unmarshal the actual object
+   from the "raw" field in the envelope.
+
+#### Code Localized to Wrapper
+
+All of this behavior is attached to the generic wrapper object.
+Depending on how the wrapper is used this may reduce custom code
+to a bare minimum.
 
 ### Provide a Type Name Index
 
-Types that implement an interface must be registered.
-This allows them to be instantiated by type name.
+Since Go removes type names during compilation it is necessary to provide
+an index into which types that implement interfaces can be registered.
+This provides:
+* a way to get the name of the type when serializing an object and
+* a way to generate a new, empty object of that type (via reflection)
+  during deserialization.
 
 The [`go-type/reg`](https://github.com/madkins23/go-type) package
 provides the type name index.
 In addition to providing the type name index,
 `go-type/reg.Registry` places the burden for registration
 on the type that implements the interface,
-not on the code that uses that type in an interface.
+not on the code that uses that type in an interface,
+breaking the "magic" link between new types and deserialization code.
 
 This seems like a more maintainable approach.
 On the negative side, `go-type/reg` uses reflection
 to identify types and generate new type instances.
-A `switch` solution avoids the use of reflection and may be more performant.
+A `switch` solution avoids the use of reflection and is likely more performant,
+but there is no support for that solution in `go-serial` at this time.
 
-### Unwrap Interface Values During Deserialization
+## Usage
 
-Override the appropriate `UnmarshalXXXX()` method for any type
-containing an interface field.
-For each interface field in that type:
+There are two basic ways to use `go-serial` wrapper objects.
 
-* Parse the 'wrapper' map to get the type name.
-* Use the global `go-type/reg.Registration` object to instantiate the type.
-* Parse the 'wrapper' map for the serialized item and unmarshal into the item.
+### Use the Wrappers Directly
 
-Support for wrappers is provided by this project.
-Usage is demonstrated in test files.
+The intention is that data structures containing interface fields
+should define those fields as wrapped interfaces.
+Thus a `struct` might be:
+
+```
+type ZZZ struct {
+   name string
+   age int
+   job *json.Wrapper[Employer]
+   pets []*json.Wrapper[Pet]
+}
+```
+
+This provides the simplest usage with little or no additional serialization code.
+The downside of this is that the data for a field is always kept within
+a wrapper and must be dereferenced during use.
+
+### Convert to Wrappers During Serialization
+
+When serializing a data structure that contains interface fields,
+generate a shadow structure with wrapper fields and copy the data
+back and forth as required using custom marshal and unmarshal code.
+The shadow structure is basically the structure that would be created
+when using the wrappers directly per the previous section.
+
+This avoids the dereferencing of wrappers to get the wrapped items.
+The downside is that any data structure with one or more interface fields
+must have custom serialization code and a shadow structure.
+
+### Examples
+
+Usage of the above is demonstrated in the various test files.
 
 ## Choices
 
@@ -126,14 +204,13 @@ being encoded or decoded twice in the process.
 
 The early problems seem to have been attempts to overly generalize the solution.
 Various serializers are different enough that making them all "work the same"
+(i.e. by converting all types though the nested `map[string]{interface}` and array structure)
 results in a lot of extra data conversion or duplicate parsing.
 
 The current solution is different for the various serializers.
 On the plus side the code is much simpler and
 results in less data conversions.
-On the minus side it won't be possible to
-(for example) just unplug JSON and plug in YAML without a lot of work,
-but then, is it _ever_ simple to change data platforms?
+On the minus side it is necessary to plan for and use wrapper objects.
 
 Anyone wishing to trace the evolution of the code:
 * it started in [`go-utils/typeutils`](https://github.com/madkins23/go-utils),
@@ -145,12 +222,20 @@ Good luck.  ;-)
 
 ## Supported Formats
 
-This package supports several serialization formats:
+This package currently supports several serialization formats:
 
 * JSON
 * YAML
 
-Ideally BSON would be included but that work has not been done.
+Some thought was given to splitting this library into multiple
+libraries, one per serialization format.
+Since this library uses [stretchr/testify](https://github.com/stretchr/testify)
+which in turn supports various comparisons including YAML it seemed
+reasonable to include these two generally useful formats.
+
+In addition it would be nice to include, for example, BSON.
+That, however, would compicate the module dependencies and testing and
+seems more appropriate to be included in a separate library.
 
 ## Caveats
 
