@@ -6,23 +6,24 @@ import (
 	"strings"
 
 	"github.com/madkins23/go-type/reg"
-
-	"github.com/madkins23/go-serial/proxy"
 )
 
-// Wrap a Wrappable item in a JSON wrapper that can handle serialization.
-// Creates a json.Wrapper object but doesn't Pack() it for serialization.
-func Wrap[W proxy.Wrappable](item W) *Wrapper[W] {
+// ClearPackedAfterMarshal controls removal of the packed data after marshaling.
+var ClearPackedAfterMarshal = true
+
+// ClearPackedAfterUnmarshal controls removal of the packed data after unmarshaling.
+var ClearPackedAfterUnmarshal = true
+
+// Wrap an item in a JSON wrapper that can handle serialization.
+func Wrap[W any](item W) *Wrapper[W] {
 	w := new(Wrapper[W])
 	w.Set(item)
 	return w
 }
 
-var _ = (proxy.Wrapper[proxy.Wrappable])(&Wrapper[proxy.Wrappable]{})
-
 // Wrapper is used to attach a type name to an item to be serialized.
 // This supports re-creating the correct type for filling an interface field.
-type Wrapper[T proxy.Wrappable] struct {
+type Wrapper[T any] struct {
 	item   T
 	Packed struct {
 		TypeName string          `json:"type"`
@@ -55,7 +56,17 @@ func (w *Wrapper[T]) MarshalJSON() ([]byte, error) {
 	// Must get rid of extraneous ending newline that is not unmarshaled.
 	w.Packed.RawForm = []byte(strings.TrimSuffix(build.String(), "\n"))
 
-	return json.Marshal(w.Packed)
+	var marshaled []byte
+	marshaled, err = json.Marshal(w.Packed)
+	if err != nil {
+		return []byte(""), fmt.Errorf("marshal packed form: %w", err)
+	}
+	if ClearPackedAfterMarshal {
+		// Remove packed data to save memory.
+		w.Packed.TypeName = ""
+		w.Packed.RawForm = []byte("")
+	}
+	return marshaled, nil
 }
 
 func (w *Wrapper[T]) UnmarshalJSON(marshaled []byte) error {
@@ -74,6 +85,11 @@ func (w *Wrapper[T]) UnmarshalJSON(marshaled []byte) error {
 		// TODO: How to get name of T?
 		return fmt.Errorf("type %s not generic type", w.Packed.TypeName)
 	} else {
+		if ClearPackedAfterUnmarshal {
+			// Remove packed data to save memory.
+			w.Packed.TypeName = ""
+			w.Packed.RawForm = []byte("")
+		}
 		return nil
 	}
 }

@@ -5,19 +5,12 @@ import (
 	"time"
 
 	"github.com/madkins23/go-type/reg"
-
-	"github.com/madkins23/go-serial/proxy"
 )
 
 var _ Investment = &Stock{}
 var _ Investment = &Bond{}
 var _ Borrower = &Federal{}
 var _ Borrower = &State{}
-
-var _ proxy.Wrappable = &Stock{}
-var _ proxy.Wrappable = &Bond{}
-var _ proxy.Wrappable = &Federal{}
-var _ proxy.Wrappable = &State{}
 
 // Registration adds the 'test' alias and registers several structs.
 // Uses the github.com/madkins23/go-type library to register structs by name.
@@ -77,7 +70,6 @@ func (a *Account) MakeFake(investments ...Investment) {
 //////////////////////////////////////////////////////////////////////////
 
 type Investment interface {
-	proxy.Wrappable
 	CurrentValue() (float32, error)
 	ClearPrivateFields()
 }
@@ -193,7 +185,6 @@ func StateBondSource() Borrower {
 // Borrower is broken out to test nesting of interface objects.
 // Borrower is nested within Bond within Account.
 type Borrower interface {
-	proxy.Wrappable
 	Name() string
 }
 

@@ -7,23 +7,19 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/madkins23/go-type/reg"
-
-	"github.com/madkins23/go-serial/proxy"
 )
 
 // Wrap a Wrappable item in a wrapper that can handle serialization.
 // Creates a proxy.Wrapper object but doesn't Wrap() it for serialization.
-func Wrap[W proxy.Wrappable](item W) *Wrapper[W] {
+func Wrap[W any](item W) *Wrapper[W] {
 	w := new(Wrapper[W])
 	w.Set(item)
 	return w
 }
 
-var _ = (proxy.Wrapper[proxy.Wrappable])(&Wrapper[proxy.Wrappable]{})
-
 // Wrapper is used to attach a type name to an item to be serialized.
 // This supports re-creating the correct type for filling an interface field.
-type Wrapper[T proxy.Wrappable] struct {
+type Wrapper[T any] struct {
 	Packed struct {
 		TypeName string `yaml:"type"`
 		RawForm  string `yaml:"data"`
