@@ -66,8 +66,8 @@ func (suite *YamlTestSuite) TestWrapper() {
 //------------------------------------------------------------------------
 
 // TestNormal tests the "normal" case which requires custom un/marshaling.
-// In this case the Zoo fields do not need to be dereferenced.
-// See the Zoo MarshalYaml() and UnmarshalYaml() below.
+// In this case the Portfolio fields do not need to be dereferenced.
+// See the Portfolio MarshalYaml() and UnmarshalYaml() below.
 func (suite *YamlTestSuite) TestNormal() {
 	MarshalCycle[Portfolio](suite, MakePortfolio(),
 		func(suite *YamlTestSuite, marshaled string) {
@@ -100,7 +100,7 @@ func (suite *YamlTestSuite) TestWrapped() {
 			suite.Assert().Contains(marshaled, "[test]State")
 		},
 		func(suite *YamlTestSuite, portfolio *WrappedPortfolio) {
-			// In the "wrapped" case the zoo fields must be dereferenced from their wrappers.
+			// In the "wrapped" case the portfolio fields must be dereferenced from their wrappers.
 			suite.Assert().Equal(test.StockCostcoName, portfolio.Favorite.Get().Name())
 			suite.Assert().Equal(test.StockCostcoShares*test.StockCostcoPrice, portfolio.Favorite.Get().Value())
 			suite.Assert().Equal(test.StockWalmartName, portfolio.Lookup[test.StockWalmartSymbol].Get().Name())

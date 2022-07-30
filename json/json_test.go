@@ -70,8 +70,8 @@ func (suite *JsonTestSuite) TestWrapper() {
 //------------------------------------------------------------------------
 
 // TestNormal tests the "normal" case which requires custom un/marshaling.
-// In this case the Zoo fields do not need to be dereferenced.
-// See the Zoo MarshalJSON() and UnmarshalJSON() below.
+// In this case the Portfolio fields do not need to be dereferenced.
+// See the Portfolio MarshalJSON() and UnmarshalJSON() below.
 func (suite *JsonTestSuite) TestNormal() {
 	MarshalCycle[Portfolio](suite, MakePortfolio(),
 		func(suite *JsonTestSuite, marshaled string) {
@@ -104,7 +104,7 @@ func (suite *JsonTestSuite) TestWrapped() {
 			suite.Assert().Contains(marshaled, "[test]State")
 		},
 		func(suite *JsonTestSuite, portfolio *WrappedPortfolio) {
-			// In the "wrapped" case the zoo fields must be dereferenced from their wrappers.
+			// In the "wrapped" case the portfolio fields must be dereferenced from their wrappers.
 			suite.Assert().Equal(test.StockCostcoName, portfolio.Favorite.Get().Name())
 			suite.Assert().Equal(test.StockCostcoShares*test.StockCostcoPrice, portfolio.Favorite.Get().Value())
 			suite.Assert().Equal(test.StockWalmartName, portfolio.Lookup[test.StockWalmartSymbol].Get().Name())
