@@ -53,18 +53,12 @@ func (suite *JsonTestSuite) TestWrapper() {
 	suite.Assert().Equal(test.StockCostcoSymbol, wrapped.Get().Symbol)
 	suite.Assert().Equal(test.StockCostcoShares, wrapped.Get().Shares)
 	suite.Assert().Equal(test.StockCostcoPrice, wrapped.Get().Price)
-	clearPacked := ClearPackedAfterMarshal
-	ClearPackedAfterMarshal = false
-	defer func() { ClearPackedAfterMarshal = clearPacked }()
 	marshaledBytes, err := wrapped.MarshalJSON()
 	suite.Require().NoError(err)
 	marshaled := string(marshaledBytes)
 	suite.Assert().Contains(marshaled, "type\":")
 	suite.Assert().Contains(marshaled, "data\":")
 	suite.Assert().Contains(marshaled, "[test]Stock")
-	suite.Assert().Equal("[test]Stock", wrapped.Packed.TypeName)
-	suite.Assert().Contains(string(wrapped.Packed.RawForm), test.StockCostcoName)
-	suite.Assert().Contains(string(wrapped.Packed.RawForm), test.StockCostcoSymbol)
 }
 
 //------------------------------------------------------------------------

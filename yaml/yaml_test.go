@@ -54,9 +54,8 @@ func (suite *YamlTestSuite) TestWrapper() {
 	suite.Assert().Equal(test.StockCostcoPrice, wrapped.Get().Price)
 	packedVersion, err := wrapped.MarshalYAML()
 	suite.Require().NoError(err)
-	packed, ok := packedVersion.(*Packed)
+	packed, ok := packedVersion.(*packed)
 	suite.Require().True(ok)
-	suite.Assert().Equal(packed, &wrapped.Packed)
 	suite.Assert().Equal("[test]Stock", packed.TypeName)
 	suite.Assert().Contains(packed.RawForm, "market: "+test.MarketNASDAQ)
 	suite.Assert().Contains(packed.RawForm, "named: "+test.StockCostcoName)
@@ -126,9 +125,6 @@ func MarshalCycle[T any](suite *YamlTestSuite, data *T,
 
 	newData := new(T)
 	suite.Require().NotNil(newData)
-	clearPacked := ClearPackedAfterUnmarshal
-	ClearPackedAfterUnmarshal = false
-	defer func() { ClearPackedAfterUnmarshal = clearPacked }()
 	suite.Require().NoError(yaml.Unmarshal(marshaled, newData))
 	if suite.showSerialized {
 		fmt.Println("---------------------------")

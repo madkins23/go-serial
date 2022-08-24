@@ -1,5 +1,6 @@
 // Package test provides resources to tests in other packages.
-// Can't name files as *_test.go as they won't link properly from this package.
+// Can't name files as *_test.go as they won't link properly from this package,
+// even into the tests in the other packages.
 //
 // Hopefully this package won't be linked into the eventual module/application.
 // Some experimentation using code from:
