@@ -3,6 +3,9 @@
 Go packages to serialize and deserialize data containing interface fields
 (fields that have interface types) to/from JSON or YAML.
 
+See the [source](https://github.com/madkins23/go-serial) or
+[godoc](https://godoc.org/github.com/madkins23/go-serial) for documentation.
+
 ![GitHub](https://img.shields.io/github/license/madkins23/go-serial)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/madkins23/go-serial)
 
@@ -251,6 +254,3 @@ seems more appropriate to be included in a separate library.
 
 2. This code _may_ work with non-`struct` objects that implement an
    interface but no testing has been done thus far.
-
-See the [source](https://github.com/madkins23/go-serial) or
-[godoc](https://godoc.org/github.com/madkins23/go-serial) for documentation.
