@@ -1,5 +1,11 @@
 # go-serial
 
+Go packages to serialize and deserialize data containing interface fields
+(fields that have interface types) to/from JSON or YAML.
+
+![GitHub](https://img.shields.io/github/license/madkins23/go-serial)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/madkins23/go-serial)
+
 ## Problem Description
 
 Go makes it hard to deserialize an object with fields that are interfaces.
