@@ -8,6 +8,7 @@ See the [source](https://github.com/madkins23/go-serial) or
 
 ![GitHub](https://img.shields.io/github/license/madkins23/go-serial)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/madkins23/go-serial)
+[![Go Reference](https://pkg.go.dev/badge/github.com/madkins23/go-serial.svg)](https://pkg.go.dev/github.com/madkins23/go-serial)
 
 ## Problem Description
 
