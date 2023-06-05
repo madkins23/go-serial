@@ -19,6 +19,14 @@ type Target interface {
 //------------------------------------------------------------------------
 
 var (
+	// ErrBadTargetGroup is returned from GetTarget when
+	// the returned Target's group doesn't match the requested group.
+	ErrBadTargetGroup = errors.New("mismatch target group")
+
+	// ErrBadTargetKey is returned from GetTarget when
+	// the returned Target's key doesn't match the requested key.
+	ErrBadTargetKey = errors.New("mismatch target key")
+
 	// ErrNoSuchTarget is returned from GetTarget when no Target is found.
 	ErrNoSuchTarget = errors.New("no such target")
 
@@ -72,12 +80,20 @@ func HasTarget(group, key string) bool {
 func GetTarget(group, key string, finder Finder) (Target, error) {
 	if target, found := targetCache[group][key]; found && target != nil {
 		return target, nil
-	} else if finder == nil {
+	}
+	if finder == nil {
+		finder = GetFinder(group)
+	}
+	if finder == nil {
 		return nil, ErrNoSuchTarget
 	} else if target, err := finder(key); err != nil {
 		return nil, fmt.Errorf("find item: %w", err)
 	} else if target == nil {
 		return nil, ErrFinderTargetIsNil
+	} else if target.Group() != group {
+		return nil, ErrBadTargetGroup
+	} else if target.Key() != key {
+		return nil, ErrBadTargetKey
 	} else if err := SetTarget(target, false); err != nil {
 		return nil, fmt.Errorf("set target: %w", err)
 	} else {

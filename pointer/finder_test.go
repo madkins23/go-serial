@@ -8,6 +8,7 @@ import (
 
 func TestFinder(t *testing.T) {
 	ClearFinderCache()
+	ClearTargetCache()
 	assert.Nil(t, GetFinder(testGroup))
 	assert.False(t, HasFinder(testGroup))
 	assert.NoError(t,

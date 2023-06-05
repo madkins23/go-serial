@@ -8,13 +8,15 @@ import (
 )
 
 const (
-	badGroup  = "badGroup"
-	badKey    = "badKey"
-	oldValue  = 17
-	newValue  = 23
-	testGroup = "testGroup"
-	testKey   = "testKey"
-	testNone  = "testNoSuchKey"
+	badGroup    = "badGroup"
+	badKey      = "badKey"
+	oldValue    = 17
+	newValue    = 23
+	finderGroup = "finderGroup"
+	testGroup   = "testGroup"
+	testKey     = "testKey"
+	testNone    = "testNoSuchKey"
+	testFinder  = "testFinder"
 )
 
 var _ Target = &testTarget{}
@@ -43,6 +45,7 @@ type TargetTestSuite struct {
 }
 
 func (suite *TargetTestSuite) SetupSuite() {
+	ClearFinderCache()
 	ClearTargetCache()
 }
 
@@ -68,24 +71,56 @@ func (suite *TargetTestSuite) TestGetTarget_NoTarget() {
 func (suite *TargetTestSuite) TestGetTarget_Finder() {
 	var (
 		errFindError = errors.New("some Find() error")
-		tgtForFinder = newTestTarget("goober", "snoofus", oldValue)
+		tgtForFinder = newTestTarget(testGroup, testFinder, oldValue)
 	)
 
-	suite.Assert().False(HasTarget(testGroup, testNone))
-	target, err := GetTarget(testGroup, testNone,
+	suite.Assert().False(HasTarget(testGroup, testFinder))
+	target, err := GetTarget(testGroup, testFinder,
 		func(_ string) (Target, error) { return nil, errFindError })
 	suite.Assert().ErrorIs(err, errFindError)
 	suite.Assert().Nil(target)
-	suite.Assert().False(HasTarget(testGroup, testNone))
-	target, err = GetTarget(testGroup, testNone,
-		func(_ string) (Target, error) { return tgtForFinder, nil })
-	suite.Assert().NoError(err)
-	suite.Assert().Equal(tgtForFinder, target)
-	suite.Assert().False(HasTarget(testGroup, testNone))
-	target, err = GetTarget(testGroup, testNone,
+	suite.Assert().False(HasTarget(testGroup, testFinder))
+	target, err = GetTarget(testGroup, testFinder,
 		func(_ string) (Target, error) { return nil, nil })
 	suite.Assert().ErrorIs(err, ErrFinderTargetIsNil)
 	suite.Assert().Nil(target)
+	suite.Assert().False(HasTarget(testGroup, testFinder))
+	target, err = GetTarget(testGroup, testFinder,
+		func(_ string) (Target, error) {
+			return newTestTarget(badGroup, testFinder, -1), nil
+		})
+	suite.Assert().ErrorIs(err, ErrBadTargetGroup)
+	suite.Assert().Nil(target)
+	suite.Assert().False(HasTarget(badGroup, testFinder))
+	target, err = GetTarget(testGroup, testFinder,
+		func(_ string) (Target, error) {
+			return newTestTarget(testGroup, badKey, -1), nil
+		})
+	suite.Assert().ErrorIs(err, ErrBadTargetKey)
+	suite.Assert().Nil(target)
+	suite.Assert().False(HasTarget(testGroup, badKey))
+	suite.Assert().False(HasTarget(testGroup, testFinder))
+	target, err = GetTarget(testGroup, testFinder,
+		func(_ string) (Target, error) { return tgtForFinder, nil })
+	suite.Assert().NoError(err)
+	suite.Assert().Equal(tgtForFinder, target)
+	suite.Assert().True(HasTarget(testGroup, testFinder))
+}
+
+func (suite *TargetTestSuite) TestGetTarget_FinderCache() {
+	var tgtForFinder = newTestTarget(finderGroup, testFinder, oldValue)
+	suite.Require().False(HasTarget(finderGroup, testFinder))
+	target, err := GetTarget(finderGroup, testFinder, nil)
+	suite.Assert().ErrorIs(err, ErrNoSuchTarget)
+	suite.Assert().Nil(target)
+	suite.Require().NoError(SetFinder(finderGroup,
+		func(_ string) (Target, error) { return tgtForFinder, nil },
+		false))
+	suite.Assert().False(HasTarget(finderGroup, testFinder))
+	target, err = GetTarget(finderGroup, testFinder, nil)
+	suite.Assert().NoError(err)
+	suite.Assert().Equal(tgtForFinder, target)
+	suite.Assert().True(HasTarget(finderGroup, testFinder))
 }
 
 func (suite *TargetTestSuite) TestSetTarget_BadTargets() {
@@ -99,7 +134,7 @@ func (suite *TargetTestSuite) TestSetTarget_BadTargets() {
 func (suite *TargetTestSuite) TestGetSetTarget() {
 	// Target doesn't exist yet.
 	suite.Assert().False(HasTarget(testGroup, testNone))
-	target, err := GetTarget(testGroup, testKey, nil)
+	target, err := GetTarget(testGroup, testNone, nil)
 	suite.Assert().ErrorIs(err, ErrNoSuchTarget)
 	suite.Assert().Nil(target)
 	// Create target and check for it.
