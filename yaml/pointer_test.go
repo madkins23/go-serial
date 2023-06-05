@@ -25,7 +25,7 @@ func (suite *YamlPointerTestSuite) SetupSuite() {
 		suite.showSerialized, err = strconv.ParseBool(showSerialized)
 		suite.Require().NoError(err)
 	}
-	pointer.ClearCache()
+	pointer.ClearTargetCache()
 	suite.Require().NoError(test.CachePets())
 }
 

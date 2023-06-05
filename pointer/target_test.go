@@ -43,7 +43,7 @@ type TargetTestSuite struct {
 }
 
 func (suite *TargetTestSuite) SetupSuite() {
-	ClearCache()
+	ClearTargetCache()
 }
 
 func TestTargetSuite(t *testing.T) {
@@ -57,8 +57,8 @@ func (suite *TargetTestSuite) TestGetTarget_NoTarget() {
 	target, err := GetTarget(badGroup, badKey, nil)
 	suite.Assert().ErrorIs(err, ErrNoSuchTarget)
 	suite.Assert().Nil(target)
-	cache[badGroup] = make(map[string]Target)
-	cache[badGroup][badKey] = nil
+	targetCache[badGroup] = make(map[string]Target)
+	targetCache[badGroup][badKey] = nil
 	suite.Assert().False(HasTarget(badGroup, badKey))
 	target, err = GetTarget(badGroup, badKey, nil)
 	suite.Assert().ErrorIs(err, ErrNoSuchTarget)

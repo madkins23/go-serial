@@ -16,51 +16,61 @@ type Target interface {
 	Key() string
 }
 
-// Finder returns a new Target item with the specified key to fill in the cache.
-// This method can be defined to pull items out of a DB or other source.
-type Finder func(key string) (Target, error)
+//------------------------------------------------------------------------
 
 var (
-	// ErrNoSuchTarget is returned from GetTarget when no target is found.
+	// ErrNoSuchTarget is returned from GetTarget when no Target is found.
 	ErrNoSuchTarget = errors.New("no such target")
 
-	// ErrNoTargetGroup is returned from SetTarget when the target has an empty group ("").
+	// ErrNoTargetGroup is returned from SetTarget when the Target has an empty group ("").
 	ErrNoTargetGroup = errors.New("no group for target")
 
-	// ErrNoTargetKey is returned from SetTarget when the target has an empty key ("").
+	// ErrNoTargetKey is returned from SetTarget when the Target has an empty key ("").
 	ErrNoTargetKey = errors.New("no key for target")
 
 	// ErrTargetIsNil is returned from SetTarget if the specified Target is nil.
 	ErrTargetIsNil = errors.New("target is nil")
 
-	// ErrFinderTargetIsNil is returned from SetTarget if the specified Target is nil.
+	// ErrFinderTargetIsNil is returned from SetTarget if the Target returned by the Finder is nil.
 	ErrFinderTargetIsNil = errors.New("target returned by finder is nil")
 
-	// ErrTargetAlreadyExists is returned from SetTarget if the cache already
+	// ErrTargetAlreadyExists is returned from SetTarget if the targetCache already
 	// has a Target for the new Target's group and key and the replace flag is false.
 	ErrTargetAlreadyExists = errors.New("target already exists")
 )
 
-// Internal cache for Target items.
-var cache = make(map[string]map[string]Target)
+//------------------------------------------------------------------------
 
-// ClearCache removes all cache entries.
+// Internal targetCache for Target items.
+var targetCache = make(map[string]map[string]Target)
+
+// ClearCache removes all target finderCache entries.
 // For test purposes, all other usage suspect.
+//
+// Deprecated: use ClearTargetCache instead.
 func ClearCache() {
-	cache = make(map[string]map[string]Target)
+	ClearTargetCache()
 }
 
-// HasTarget returns true if the specified group and key have a Target in the cache.
+// ClearTargetCache removes all target finderCache entries.
+// For test purposes, all other usage suspect.
+func ClearTargetCache() {
+	targetCache = make(map[string]map[string]Target)
+}
+
+//------------------------------------------------------------------------
+
+// HasTarget returns true if the specified group and key have a Target in the Target cache.
 func HasTarget(group, key string) bool {
-	target, found := cache[group][key]
+	target, found := targetCache[group][key]
 	return found && target != nil
 }
 
-// GetTarget returns a Target object from the cache for use in Pointer implementations.
+// GetTarget returns a Target object from the targetCache for use in Pointer implementations.
 // If there is no such Target and no Finder the ErrNoSuchTarget error is returned.
-// If the Finder is used to acquire the Target it is added to the cache and returned.
+// If the Finder is used to acquire the Target it is added to the targetCache and returned.
 func GetTarget(group, key string, finder Finder) (Target, error) {
-	if target, found := cache[group][key]; found && target != nil {
+	if target, found := targetCache[group][key]; found && target != nil {
 		return target, nil
 	} else if finder == nil {
 		return nil, ErrNoSuchTarget
@@ -75,8 +85,8 @@ func GetTarget(group, key string, finder Finder) (Target, error) {
 	}
 }
 
-// SetTarget adds the specified Target to the cache.
-// Use this function for Pointer implementations and preloading the cache.
+// SetTarget adds the specified Target to the targetCache.
+// Use this function for Pointer implementations and preloading the targetCache.
 func SetTarget(target Target, replace bool) error {
 	if target == nil {
 		return ErrTargetIsNil
@@ -85,17 +95,13 @@ func SetTarget(target Target, replace bool) error {
 	} else if key := target.Key(); key == "" {
 		return ErrNoTargetKey
 	} else {
-		if _, err := GetTarget(group, key, nil); err == nil {
-			if !replace {
-				return ErrTargetAlreadyExists
-			}
-		} else if !errors.Is(err, ErrNoSuchTarget) {
-			return fmt.Errorf("get target before set: %w", err)
+		if HasTarget(group, key) && !replace {
+			return ErrTargetAlreadyExists
 		}
-		cacheGroup, found := cache[group]
+		cacheGroup, found := targetCache[group]
 		if !found {
-			cache[group] = make(map[string]Target)
-			cacheGroup = cache[group]
+			targetCache[group] = make(map[string]Target)
+			cacheGroup = targetCache[group]
 		}
 		cacheGroup[key] = target
 		return nil
