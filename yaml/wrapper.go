@@ -33,6 +33,8 @@ func (w *Wrapper[T]) Set(t T) {
 	w.item = t
 }
 
+// -----------------------------------------------------------------------
+
 type packed struct {
 	TypeName string `yaml:"type"`
 	RawForm  string `yaml:"data"`

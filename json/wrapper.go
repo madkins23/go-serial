@@ -2,6 +2,7 @@ package json
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -30,6 +31,8 @@ func (w *Wrapper[T]) Get() T {
 func (w *Wrapper[T]) Set(t T) {
 	w.item = t
 }
+
+// -----------------------------------------------------------------------
 
 type packed struct {
 	TypeName string          `json:"type"`
@@ -60,6 +63,8 @@ func (w *Wrapper[T]) MarshalJSON() ([]byte, error) {
 	return marshaled, nil
 }
 
+var errEmptyTypeField = errors.New("empty type field")
+
 func (w *Wrapper[T]) UnmarshalJSON(marshaled []byte) error {
 	var pack packed
 	if err := json.Unmarshal(marshaled, &pack); err != nil {
@@ -68,7 +73,7 @@ func (w *Wrapper[T]) UnmarshalJSON(marshaled []byte) error {
 
 	var ok bool
 	if pack.TypeName == "" {
-		return fmt.Errorf("empty type field")
+		return errEmptyTypeField
 	} else if temp, err := reg.Make(pack.TypeName); err != nil {
 		return fmt.Errorf("make instance of type %s: %w", pack.TypeName, err)
 	} else if err = json.NewDecoder(strings.NewReader(string(pack.RawForm))).Decode(&temp); err != nil {

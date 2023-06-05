@@ -16,31 +16,31 @@ import (
 	"github.com/madkins23/go-serial/test"
 )
 
-type JsonTestSuite struct {
+type JsonWrapperTestSuite struct {
 	suite.Suite
 	showSerialized bool
 }
 
-func (suite *JsonTestSuite) SetupSuite() {
+func (suite *JsonWrapperTestSuite) SetupSuite() {
 	if showSerialized, found := os.LookupEnv("GO-TYPE-SHOW-SERIALIZED"); found {
 		var err error
 		suite.showSerialized, err = strconv.ParseBool(showSerialized)
 		suite.Require().NoError(err)
 	}
-	reg.Highlander().Clear()
+	reg.Singleton().Clear()
 	suite.Require().NoError(reg.AddAlias("json", Bond{}), "creating json test alias")
 	suite.Require().NoError(test.Register())
 	suite.Require().NoError(reg.Register(Bond{}))
 	suite.Require().NoError(reg.Register(WrappedBond{}))
 }
 
-func TestJsonSuite(t *testing.T) {
-	suite.Run(t, new(JsonTestSuite))
+func TestJsonWrapperSuite(t *testing.T) {
+	suite.Run(t, new(JsonWrapperTestSuite))
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-func (suite *JsonTestSuite) TestWrapper() {
+func (suite *JsonWrapperTestSuite) TestWrapper() {
 	stock := test.MakeCostco()
 	suite.Require().NotNil(stock)
 	suite.Assert().Equal(test.StockCostcoName, stock.Named)
@@ -66,16 +66,16 @@ func (suite *JsonTestSuite) TestWrapper() {
 // TestNormal tests the "normal" case which requires custom un/marshaling.
 // In this case the Portfolio fields do not need to be dereferenced.
 // See the Portfolio MarshalJSON() and UnmarshalJSON() below.
-func (suite *JsonTestSuite) TestNormal() {
+func (suite *JsonWrapperTestSuite) TestNormal() {
 	MarshalCycle[Portfolio](suite, MakePortfolio(),
-		func(suite *JsonTestSuite, marshaled string) {
+		func(suite *JsonWrapperTestSuite, marshaled string) {
 			suite.Assert().Contains(marshaled, "type\":")
 			suite.Assert().Contains(marshaled, "data\":")
 			suite.Assert().Contains(marshaled, "[test]Stock")
 			suite.Assert().Contains(marshaled, "[test]Federal")
 			suite.Assert().Contains(marshaled, "[test]State")
 		},
-		func(suite *JsonTestSuite, portfolio *Portfolio) {
+		func(suite *JsonWrapperTestSuite, portfolio *Portfolio) {
 			// In the "normal" case the portfolio fields are referenced directly.
 			suite.Assert().Equal(test.StockCostcoName, portfolio.Favorite.Name())
 			suite.Assert().Equal(test.StockCostcoShares*test.StockCostcoPrice, portfolio.Favorite.Value())
@@ -88,16 +88,16 @@ func (suite *JsonTestSuite) TestNormal() {
 
 // TestWrapped tests the expected usage of json.Wrap() and json.Wrapper.
 // In this case all references to interface values are wrapped.
-func (suite *JsonTestSuite) TestWrapped() {
+func (suite *JsonWrapperTestSuite) TestWrapped() {
 	MarshalCycle[WrappedPortfolio](suite, MakeWrappedPortfolio(),
-		func(suite *JsonTestSuite, marshaled string) {
+		func(suite *JsonWrapperTestSuite, marshaled string) {
 			suite.Assert().Contains(marshaled, "type\":")
 			suite.Assert().Contains(marshaled, "data\":")
 			suite.Assert().Contains(marshaled, "[test]Stock")
 			suite.Assert().Contains(marshaled, "[test]Federal")
 			suite.Assert().Contains(marshaled, "[test]State")
 		},
-		func(suite *JsonTestSuite, portfolio *WrappedPortfolio) {
+		func(suite *JsonWrapperTestSuite, portfolio *WrappedPortfolio) {
 			// In the "wrapped" case the portfolio fields must be dereferenced from their wrappers.
 			suite.Assert().Equal(test.StockCostcoName, portfolio.Favorite.Get().Name())
 			suite.Assert().Equal(test.StockCostcoShares*test.StockCostcoPrice, portfolio.Favorite.Get().Value())
@@ -109,9 +109,9 @@ func (suite *JsonTestSuite) TestWrapped() {
 //////////////////////////////////////////////////////////////////////////
 
 // MarshalCycle has common code for testing a marshal/unmarshal cycle.
-func MarshalCycle[T any](suite *JsonTestSuite, data *T,
-	marshaledTests func(suite *JsonTestSuite, marshaled string),
-	unmarshaledTests func(suite *JsonTestSuite, unmarshaled *T)) {
+func MarshalCycle[T any](suite *JsonWrapperTestSuite, data *T,
+	marshaledTests func(suite *JsonWrapperTestSuite, marshaled string),
+	unmarshaledTests func(suite *JsonWrapperTestSuite, unmarshaled *T)) {
 	marshaled, err := json.Marshal(data)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(marshaled)
