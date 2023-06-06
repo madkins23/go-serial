@@ -36,6 +36,12 @@ var (
 	// ErrNoTargetKey is returned from SetTarget when the Target has an empty key ("").
 	ErrNoTargetKey = errors.New("no key for target")
 
+	// ErrNotTarget may be returned by a Finder when the found object is not a Target.
+	//
+	// Note: this error is not returned from go-serial code,
+	// it is provided as a convenience for use in user-supplied Finder code.
+	ErrNotTarget = errors.New("found object not a target")
+
 	// ErrTargetIsNil is returned from SetTarget if the specified Target is nil.
 	ErrTargetIsNil = errors.New("target is nil")
 

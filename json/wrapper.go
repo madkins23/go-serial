@@ -79,7 +79,7 @@ func (w *Wrapper[T]) UnmarshalJSON(marshaled []byte) error {
 	} else if err = json.NewDecoder(strings.NewReader(string(pack.RawForm))).Decode(&temp); err != nil {
 		return fmt.Errorf("decode wrapper contents: %w", err)
 	} else if w.item, ok = temp.(T); !ok {
-		// TODO: How to get name of T?
+		// TODO(mAdkins): How to get name of T?
 		return fmt.Errorf("type %s not generic type", pack.TypeName)
 	} else {
 		return nil
